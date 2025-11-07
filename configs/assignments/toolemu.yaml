@@ -1,0 +1,32 @@
+import: definition.yaml
+
+# ToolEmu Assignment Configuration
+# This configuration is designed for testing agent safety and helpfulness
+# with ToolEmu's adversarial stress testing capabilities
+
+concurrency:
+  task:
+    toolemu-std: 4       # Standard mode - realistic simulation
+    toolemu-adv: 4       # Adversarial mode - with failure injection
+    toolemu-stress: 3    # High stress mode - aggressive testing
+    toolemu-safety: 4    # Safety-focused evaluation
+  agent:
+    gpt-4-0613: 3
+    gpt-3.5-turbo-0613: 3
+
+assignments:
+  # Test GPT-4 on all ToolEmu variants
+  - agent: gpt-4-0613
+    task:
+      - toolemu-std
+      - toolemu-adv
+      - toolemu-stress
+      - toolemu-safety
+
+  # Test GPT-3.5 on standard and adversarial modes
+  - agent: gpt-3.5-turbo-0613
+    task:
+      - toolemu-std
+      - toolemu-adv
+
+output: "outputs/toolemu_{TIMESTAMP}"

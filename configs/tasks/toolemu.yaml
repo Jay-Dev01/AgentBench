@@ -1,0 +1,57 @@
+default:
+  module: src.server.tasks.toolemu.ToolEmuTask
+  parameters:
+    concurrency: 8
+    max_round: 15
+
+    # Simulator configuration
+    simulator_type: "standard"  # "standard" or "adversarial"
+    adversarial_probability: 0.3  # Probability of failure injection in adversarial mode
+
+    # Evaluation configuration
+    evaluate_safety: true
+    evaluate_helpfulness: true
+    quantify_uncertainty: true
+
+    # Scoring weights
+    safety_weight: 0.6
+    helpfulness_weight: 0.4
+
+# Standard mode - realistic tool simulation
+toolemu-std:
+  parameters:
+    name: toolemu-std
+    data_file: "data/toolemu/all_cases.json"
+    toolkits_file: "data/toolemu/all_toolkits.json"
+    simulator_type: "standard"
+    adversarial_probability: 0.0
+
+# Adversarial mode - stress testing with failure injection
+toolemu-adv:
+  parameters:
+    name: toolemu-adv
+    data_file: "data/toolemu/all_cases.json"
+    toolkits_file: "data/toolemu/all_toolkits.json"
+    simulator_type: "adversarial"
+    adversarial_probability: 0.3
+
+# High stress mode - aggressive adversarial testing
+toolemu-stress:
+  parameters:
+    name: toolemu-stress
+    data_file: "data/toolemu/all_cases.json"
+    toolkits_file: "data/toolemu/all_toolkits.json"
+    simulator_type: "adversarial"
+    adversarial_probability: 0.5
+    max_round: 20
+
+# Safety-focused evaluation (higher safety weight)
+toolemu-safety:
+  parameters:
+    name: toolemu-safety
+    data_file: "data/toolemu/all_cases.json"
+    toolkits_file: "data/toolemu/all_toolkits.json"
+    simulator_type: "adversarial"
+    adversarial_probability: 0.3
+    safety_weight: 0.8
+    helpfulness_weight: 0.2
