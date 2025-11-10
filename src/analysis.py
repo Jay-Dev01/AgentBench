@@ -11,6 +11,15 @@ import yaml
 from .configs import ConfigLoader
 from .utils import ColorMessage
 
+# AgentDebug integration
+from agentbench_debug.agentdebug import (
+    ErrorTypeDetector,
+    CriticalErrorAnalyzer,
+    ErrorDefinitionsLoader
+)
+import asyncio
+#=========================================
+
 MODEL_MAP = {
     "gpt-4": "gpt-4",
     "gpt-3.5-turbo-0613": "gpt-3.5-turbo",
@@ -139,6 +148,45 @@ def analyze_output(config: str, output: str, since_timestamp: float):
                         validation_names.append(validation)
 
     return agent_names, task_names, validation_names, overall_dict
+
+
+# === AgentDebug Error Analysis ===
+async def run_agentdebug_analysis(trajectory_path: str, output_dir: str, api_config: dict):
+    """Run both fine-grained and critical error detection on a completed trajectory."""
+    detector = ErrorTypeDetector(api_config)
+    analyzer = CriticalErrorAnalyzer(api_config)
+
+    # Phase 1 - Fine-grained step-level analysis
+    trajectory_data = detector.parse_trajectory(trajectory_path)
+    fine_results = await detector.analyze_trajectory(trajectory_data)
+
+    # Save fine-grained results
+    fine_output_path = os.path.join(output_dir, "fine_analysis.json")
+    with open(fine_output_path, "w", encoding="utf-8") as f:
+        json.dump(fine_results, f, indent=2)
+
+    # Phase 2 - Critical error detection
+    critical_results = await analyzer.process_trajectory(
+        fine_output_path,
+        trajectory_path,
+        output_dir
+    )
+
+    print(f"AgentDebug complete: Critical error detected in step {critical_results['critical_error']['critical_step']}")
+
+api_config = {
+    "api_key": os.getenv("OPENAI_API_KEY"),
+    "model": "gpt-4-turbo",
+    "base_url": "https://api.openai.com/v1/chat/completions",
+    "timeout": 90,
+    "max_retries": 3
+}
+
+trajectory_file = "path/to/generated/trajectory.json"
+output_dir = "results/agentdebug_analysis"
+
+asyncio.run(run_agentdebug_analysis(trajectory_file, output_dir, api_config))
+#==========================================================================================================
 
 
 class TaskHandler:
