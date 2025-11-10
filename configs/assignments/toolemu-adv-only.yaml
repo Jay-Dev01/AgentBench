@@ -1,0 +1,17 @@
+import: definition.yaml
+
+# ToolEmu Adversarial Mode Only
+# Run only toolemu-adv with GPT-4
+
+concurrency:
+  task:
+    toolemu-adv: 4
+  agent:
+    gpt-4-0613: 3
+
+assignments:
+  - agent: gpt-4-0613
+    task:
+      - toolemu-adv
+
+output: "outputs/toolemu_adv_{TIMESTAMP}"
