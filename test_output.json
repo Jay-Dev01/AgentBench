@@ -1,0 +1,127 @@
+{
+  "task": "test-alfworld-001",
+  "task_description": "Find the apple in the kitchen and place it on the counter.",
+  "steps": [
+    {
+      "idx": 0,
+      "context": "You are in the kitchen. You can see a fridge, a counter, and a table. Available actions: look around, open fridge, take apple, go to counter.",
+      "modules": {
+        "action": "observe - around look"
+      },
+      "step_idx": 0,
+      "uncertainty": {
+        "step": {
+          "score": 0.75,
+          "status": "low_confidence"
+        },
+        "details": [
+          {
+            "step_idx": 0,
+            "module": "action",
+            "method": "self_consistency",
+            "score": 0.75,
+            "status": "low_confidence",
+            "meta": {
+              "k": 4,
+              "threshold": 0.35,
+              "samples": [
+                "explore - around look",
+                "search - look around",
+                "examine - look around",
+                "look around"
+              ]
+            }
+          }
+        ]
+      },
+      "self_correction": {
+        "fired": true,
+        "reason": "uncertainty>threshold",
+        "raw": "<action>observe - around look</action>",
+        "updated_action": "observe - around look"
+      }
+    },
+    {
+      "idx": 1,
+      "context": "You see a red apple on the table. Available actions: take apple, go to counter, open fridge.",
+      "modules": {
+        "action": "observe - apple take"
+      },
+      "step_idx": 1,
+      "uncertainty": {
+        "step": {
+          "score": 0.75,
+          "status": "low_confidence"
+        },
+        "details": [
+          {
+            "step_idx": 1,
+            "module": "action",
+            "method": "self_consistency",
+            "score": 0.75,
+            "status": "low_confidence",
+            "meta": {
+              "k": 4,
+              "threshold": 0.35,
+              "samples": [
+                "inspect - apple take",
+                "examine - take apple",
+                "observe - apple take",
+                "take apple"
+              ]
+            }
+          }
+        ]
+      },
+      "self_correction": {
+        "fired": true,
+        "reason": "uncertainty>threshold",
+        "raw": "<action>observe - apple take</action>",
+        "updated_action": "observe - apple take"
+      }
+    },
+    {
+      "idx": 2,
+      "context": "You have the apple. Available actions: go to counter, place apple on counter.",
+      "modules": {
+        "action": "explore - counter go to"
+      },
+      "step_idx": 2,
+      "uncertainty": {
+        "step": {
+          "score": 0.75,
+          "status": "low_confidence"
+        },
+        "details": [
+          {
+            "step_idx": 2,
+            "module": "action",
+            "method": "self_consistency",
+            "score": 0.75,
+            "status": "low_confidence",
+            "meta": {
+              "k": 4,
+              "threshold": 0.35,
+              "samples": [
+                "search - counter go to",
+                "observe - go to counter",
+                "check - go counter to",
+                "go to counter"
+              ]
+            }
+          }
+        ]
+      },
+      "self_correction": {
+        "fired": true,
+        "reason": "uncertainty>threshold",
+        "raw": "<action>explore - counter go to</action>",
+        "updated_action": "explore - counter go to"
+      }
+    }
+  ],
+  "totals": {
+    "avg_uncertainty": 0.75,
+    "low_conf_steps": 3
+  }
+}
