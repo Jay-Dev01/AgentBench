@@ -1,0 +1,28 @@
+{
+  "task": "test-alfworld-001",
+  "task_description": "Find the apple in the kitchen and place it on the counter.",
+  "steps": [
+    {
+      "idx": 0,
+      "context": "You are in the kitchen. You can see a fridge, a counter, and a table. Available actions: look around, open fridge, take apple, go to counter.",
+      "modules": {
+        "action": "look around"
+      }
+    },
+    {
+      "idx": 1,
+      "context": "You see a red apple on the table. Available actions: take apple, go to counter, open fridge.",
+      "modules": {
+        "action": "take apple"
+      }
+    },
+    {
+      "idx": 2,
+      "context": "You have the apple. Available actions: go to counter, place apple on counter.",
+      "modules": {
+        "action": "go to counter"
+      }
+    }
+  ]
+}
+

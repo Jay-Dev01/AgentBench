@@ -5,8 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
+
+# Add src/ to Python path so we can import agentbench_debug
+script_dir = Path(__file__).parent
+repo_root = script_dir.parent
+src_dir = repo_root / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 
 from agentbench_debug.fine_grained.analyzer import FineGrainedAnalyzer
 
