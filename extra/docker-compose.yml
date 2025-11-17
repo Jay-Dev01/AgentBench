@@ -5,8 +5,53 @@ services:
   controller:
     image: jingbh/agentrl-controller:latest
     container_name: agentrl-controller
-    network_mode: host
+    ports:
+      - "5020:5020"
     command:
+      - controller
+
+  toolemu-std:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/toolemu/Dockerfile
+    command: --controller http://host.docker.internal:5020/api toolemu-std
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  toolemu-adv:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/toolemu/Dockerfile
+    command: --controller http://host.docker.internal:5020/api toolemu-adv
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  toolemu-stress:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/toolemu/Dockerfile
+    command: --controller http://host.docker.internal:5020/api toolemu-stress
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  toolemu-safety:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/toolemu/Dockerfile
+    command: --controller http://host.docker.internal:5020/api toolemu-safety
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
       - controller
 
   alfworld-std:

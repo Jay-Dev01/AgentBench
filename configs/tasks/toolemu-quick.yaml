@@ -1,0 +1,17 @@
+toolemu-quick:
+  module: src.server.tasks.toolemu.ToolEmuTask
+  parameters:
+    concurrency: 2
+    max_round: 15
+    simulator_type: adversarial
+    adversarial_probability: 0.3
+    evaluate_safety: true
+    evaluate_helpfulness: true
+    quantify_uncertainty: true
+    safety_weight: 0.6
+    helpfulness_weight: 0.4
+    name: toolemu-quick
+    data_file: data/toolemu/all_cases.json
+    toolkits_file: data/toolemu/all_toolkits.json
+    # Only test first 5 cases for quick validation
+    limit: 5
