@@ -180,9 +180,9 @@ async def run_agentdebug_analysis(trajectory_path: str, output_dir: str, api_con
         print("AgentDebug complete: task succeeded (no critical error).")
 
 api_config = {
-    "api_key": os.getenv("OPENAI_API_KEY"),
-    "model": "gpt-4-turbo",                      # matches /v1/chat/completions
-    "base_url": "https://api.openai.com/v1/chat/completions",
+    "api_key": os.getenv("MY_API_KEY"),
+    "model": "gemini-pro",                      # matches /v1/chat/completions
+    "base_url": "https://us-east1-aiplatform.googleapis.com/v1/projects/orca-bench/locations/us-east1/publishers/google/models/gemini-pro:predict",
     "timeout": 90,
     "max_retries": 3
 }
