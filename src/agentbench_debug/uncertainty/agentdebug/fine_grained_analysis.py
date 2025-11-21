@@ -442,36 +442,55 @@ Return ONLY JSON:
         return out
 
     # ---------- LLM helpers ----------
-    async def _call_llm(self, prompt: str, system_role: str) -> str:
-        payload = {
-            "model": self.config["model"],
-            "messages": [
-                {"role": "system", "content": system_role},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": self.config.get("temperature", 0.0),
-            "response_format": {"type": "json_object"}
-        }
-        proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+        async def call_llm(self, prompt: str) -> str:
+        """
+        Call Gemini API (generateContent) using an OpenAI-like config.
+        Expects config fields:
+          - api_key
+          - model  (e.g. 'gemini-1.5-flash')
+          - base_url (e.g. 'https://generativelanguage.googleapis.com/v1beta')
+        """
+        import aiohttp
+        import asyncio
 
-        async with aiohttp.ClientSession() as session:
-            last_err = None
-            for attempt in range(self.config.get("max_retries", 3)):
+        api_key = self.config["api_key"]
+        model = self.config["model"]
+        base_url = self.config.get("base_url", "https://generativelanguage.googleapis.com/v1beta")
+
+        # Gemini endpoint: {base_url}/models/{model}:generateContent
+        url = f"{base_url.rstrip('/')}/models/{model}:generateContent"
+
+        # We already bake the "system" instructions into the prompt text,
+        # so Gemini just gets one big text chunk.
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
+            ]
+        }
+
+        params = {"key": api_key}
+        timeout = aiohttp.ClientTimeout(total=self.config.get("timeout", 60))
+        max_retries = self.config.get("max_retries", 3)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            for attempt in range(max_retries):
                 try:
-                    async with session.post(
-                        self.config["base_url"],
-                        headers=self.headers,
-                        json=payload,
-                        timeout=aiohttp.ClientTimeout(total=self.config.get("timeout", 60)),
-                        proxy=proxy if proxy else None
-                    ) as r:
-                        r.raise_for_status()
-                        data = await r.json()
-                        return data["choices"][0]["message"]["content"]
+                    async with session.post(url, params=params, json=payload) as resp:
+                        resp.raise_for_status()
+                        data = await resp.json()
+
+                        # Gemini style: candidates[0].content.parts[0].text
+                        return data["candidates"][0]["content"]["parts"][0]["text"]
                 except Exception as e:
-                    last_err = e
+                    if attempt == max_retries - 1:
+                        logger.error(f"Gemini API call failed: {e}")
+                        raise
                     await asyncio.sleep(2 ** attempt)
-            raise RuntimeError(f"LLM call failed after retries: {last_err}")
+
 
     @staticmethod
     def _strip_code_fences(text: str) -> str:
