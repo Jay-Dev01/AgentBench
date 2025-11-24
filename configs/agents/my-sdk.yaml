@@ -1,0 +1,9 @@
+module: src.client.agents.my_openai_chat.MyOpenAIChat
+parameters:
+  name: "my-sdk"
+  # model: gpt-4o-mini
+  # api_base: https://api.openai.com/v1
+  # api_key: <% OPTIONAL_IF_NOT_SET_ENV OPENAI_API_KEY %>
+  # temperature: 0
+
+

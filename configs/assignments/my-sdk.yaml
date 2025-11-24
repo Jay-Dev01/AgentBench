@@ -1,0 +1,19 @@
+import: definition.yaml
+
+assignments:
+  - agent:
+      - my-sdk
+    task:
+      - dbbench-std
+      - os-std
+
+output: "outputs/{TIMESTAMP}"
+
+concurrency:
+  task:
+    dbbench-std: 5
+    os-std: 5
+  agent:
+    my-sdk: 5
+
+
