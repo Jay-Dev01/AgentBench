@@ -2,7 +2,7 @@ import: definition.yaml
 
 assignments:
   - agent:
-      - my-sdk
+      - my-gemini
     task:
       - os-std
 
@@ -10,9 +10,8 @@ output: "outputs/{TIMESTAMP}"
 
 concurrency:
   task:
-    dbbench-std: 1
     os-std: 1
   agent:
-    my-sdk: 1
+    my-gemini: 1
 
 

@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Any
 
 from pydantic import BaseModel, root_validator
 
@@ -21,7 +21,8 @@ class TaskSampleExecutionResult(BaseModel):
 
 class AgentOutput(BaseModel):
     status: AgentOutputStatus = AgentOutputStatus.NORMAL
-    content: Union[str, None] = None
+    # Content can be plain text or structured payload (e.g., messages/tool_calls for FC)
+    content: Union[str, Any, None] = None
 
     # at least one of them should be not None
     @root_validator(pre=False, skip_on_failure=True)

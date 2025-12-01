@@ -39,3 +39,8 @@ my-sdk:
     import: "./my-sdk.yaml"
     parameters:
         name: "my-sdk"
+
+my-gemini:
+    import: "./my-gemini.yaml"
+    parameters:
+        name: "my-gemini"

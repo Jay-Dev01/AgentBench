@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict
+from typing import List, Dict, Any
 
 import requests
 
@@ -42,5 +42,22 @@ class MyOpenAIChat(AgentClient):
             raise Exception(f"OpenAI API error {resp.status_code}: {resp.text}")
         data = resp.json()
         return data["choices"][0]["message"]["content"]
+
+    # Function-calling interface: expects controller-formatted messages/tools and returns assistant message with tool_calls
+    def inference_with_tools(self, *, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]]) -> Dict[str, Any]:
+        url = f"{self.api_base}/chat/completions"
+        body: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": "auto",
+            "temperature": self.temperature,
+        }
+        resp = requests.post(url, json=body, headers=self.headers, timeout=120)
+        if resp.status_code != 200:
+            raise Exception(f"OpenAI API error {resp.status_code}: {resp.text}")
+        data = resp.json()
+        # Return the raw assistant message dict (includes tool_calls/content)
+        return data["choices"][0]["message"]
 
 

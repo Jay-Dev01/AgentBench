@@ -47,7 +47,16 @@ class TaskClient:
             return 0
         concurrency = 0
         for worker in result[self.name]["workers"].values():
-            if worker["status"] == WorkerStatus.ALIVE:
+            status = worker.get("status")
+            is_alive = False
+            # Controller may return enum value (0) or string like "ALIVE"
+            try:
+                is_alive = (status == WorkerStatus.ALIVE) or (
+                    isinstance(status, str) and status.upper() == "ALIVE"
+                ) or (isinstance(status, int) and status == int(WorkerStatus.ALIVE))
+            except Exception:
+                is_alive = False
+            if is_alive:
                 concurrency += worker["capacity"] - worker["current"]
         return concurrency
 
@@ -68,12 +77,71 @@ class TaskClient:
                 error=TaskError.START_FAILED.value, info=result.text
             )
         result = result.json()
+        # Accept legacy or FC-style responses. Extract session_id and output payload robustly.
+        sid = None
+        output_payload = None
+        if isinstance(result, dict):
+            # Session id might be at different locations
+            if "session_id" in result:
+                sid = result["session_id"]
+            elif isinstance(result.get("session"), dict) and "id" in result["session"]:
+                sid = result["session"]["id"]
+            # Output payload may be nested or top-level (messages/tools)
+            if "output" in result:
+                output_payload = result["output"]
+            elif ("messages" in result) or ("tools" in result):
+                output_payload = {
+                    "messages": result.get("messages", []),
+                    "tools": result.get("tools", []),
+                    "status": SampleStatus.RUNNING,
+                }
+        # Fallback: try to fetch latest session id from controller if missing
+        if sid is None:
+            try:
+                probe = requests.get(self.controller_address + "/get_sessions", params={"name": self.name})
+                if probe.status_code == 200:
+                    sessions = probe.json()
+                    # sessions could be a list of dicts with 'id'; choose the max id
+                    if isinstance(sessions, list):
+                        candidates = [s.get("id") for s in sessions if isinstance(s, dict) and "id" in s]
+                        if candidates:
+                            sid = max(candidates)
+                    elif isinstance(sessions, dict):
+                        # maybe { "sessions": [ {id:...}, ... ] }
+                        items = sessions.get("sessions")
+                        if isinstance(items, list):
+                            candidates = [s.get("id") for s in items if isinstance(s, dict) and "id" in s]
+                            if candidates:
+                                sid = max(candidates)
+            except Exception:
+                pass
+        if sid is None or output_payload is None:
+            return TaskClientOutput(
+                error=TaskError.START_FAILED.value,
+                info=f"Invalid start_sample response: {result}",
+            )
+        # Normalize internal result
+        result = {"session_id": sid, "output": output_payload}
         sid = result["session_id"]
         latest_result = result
-        while SampleStatus(result["output"]["status"]) == SampleStatus.RUNNING:
+        while SampleStatus(result["output"].get("status", SampleStatus.RUNNING)) == SampleStatus.RUNNING:
             try:
-                content = agent.inference(result["output"]["history"])
-                response = AgentOutput(content=content)
+                output_payload = result["output"]
+                response: AgentOutput
+                # FC-style: controller provides messages/tools; agent must return assistant message with tool_calls
+                if "messages" in output_payload and "tools" in output_payload:
+                    # Try to call FC interface if available
+                    if hasattr(agent, "inference_with_tools"):
+                        assistant_message = getattr(agent, "inference_with_tools")(
+                            messages=output_payload["messages"], tools=output_payload.get("tools", [])
+                        )
+                        response = AgentOutput(content={"messages": [assistant_message]})
+                    else:
+                        raise Exception("Agent does not support function-calling (tools) interface")
+                else:
+                    # Legacy: use history of role/content
+                    content = agent.inference(output_payload["history"])
+                    response = AgentOutput(content=content)
             except AgentContextLimitException:
                 response = AgentOutput(status=AgentOutputStatus.AGENT_CONTEXT_LIMIT)
             except Exception as e:
