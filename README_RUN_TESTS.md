@@ -121,7 +121,9 @@ docker build -t local-os/ubuntu -f ./data/os_interaction/res/dockerfiles/ubuntu 
 
 3) Start the stack:
 ```powershell
-docker compose -f extra/docker-compose.yml up -d
+docker compose -f extra/docker-compose.yml up -d `
+  controller toolemu-std toolemu-adv toolemu-stress toolemu-safety `
+  alfworld-std dbbench-std knowledgegraph-std os_interaction-std freebase redis
 ```
 - This exposes the controller on `http://localhost:5020/api`
 - Workers will register automatically as they come up
