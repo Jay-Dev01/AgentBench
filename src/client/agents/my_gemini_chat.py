@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import requests
 
@@ -19,8 +19,13 @@ def _to_gemini_contents(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 		# Some controllers inject tool replies as role "tool" with plain content
 		if role == "tool" and not parts and text:
 			parts.append({"text": text})
+		# Gemini v1/v1beta accept only 'user' and 'model' roles
 		if role == "assistant":
 			role = "model"
+		elif role in ("system", "tool"):
+			role = "user"
+		elif role not in ("user", "model"):
+			role = "user"
 		contents.append({"role": role, "parts": parts or [{"text": ""}]})
 	return contents
 
@@ -53,8 +58,10 @@ class MyGeminiChat(AgentClient):
 		self.temperature = temperature
 		self.headers = headers or {"Content-Type": "application/json"}
 
-	def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
-		url = f"{self.api_base}/models/{self.model}:{path}?key={self.api_key}"
+	def _post(self, path: str, body: Dict[str, Any], *, api_base: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
+		base = (api_base or self.api_base).rstrip("/")
+		model_name = (model or self.model)
+		url = f"{base}/models/{model_name}:{path}?key={self.api_key}"
 		resp = requests.post(url, headers=self.headers, data=json.dumps(body), timeout=120)
 		if resp.status_code != 200:
 			raise Exception(f"Gemini API error {resp.status_code}: {resp.text}")
@@ -79,13 +86,59 @@ class MyGeminiChat(AgentClient):
 	def inference_with_tools(self, *, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]]) -> Dict[str, Any]:
 		contents = _to_gemini_contents(messages or [])
 		function_declarations = _to_gemini_function_declarations(tools or [])
+		# If no tools are available, send a plain chat call (no toolConfig)
+		if not function_declarations:
+			data = self._post(
+				"generateContent",
+				{
+					"contents": contents,
+					"generationConfig": {"temperature": self.temperature},
+				},
+			)
+			candidates = (data or {}).get("candidates") or []
+			text = ""
+			if candidates:
+				parts = candidates[0].get("content", {}).get("parts") or []
+				for p in parts:
+					if "text" in p:
+						text = p["text"]
+						break
+			return {"role": "assistant", "content": text}
+
 		body: Dict[str, Any] = {
 			"contents": contents,
-			"tools": [{"functionDeclarations": function_declarations}] if function_declarations else [],
+			"tools": [{"functionDeclarations": function_declarations}],
 			"toolConfig": {"functionCallingConfig": {"mode": "AUTO"}},
 			"generationConfig": {"temperature": self.temperature},
 		}
-		data = self._post("generateContent", body)
+		# Attempt primary call
+		try:
+			data = self._post("generateContent", body)
+		except Exception as e:
+			msg = str(e)
+			# Fallback path: if the endpoint/model rejects tools/toolConfig, retry on v1beta and/or different model
+			should_retry_beta = ("Unknown name \"tools\"" in msg) or ("Unknown name \"toolConfig\"" in msg) or ("INVALID_ARGUMENT" in msg)
+			should_retry_model = ("not found for API version v1beta" in msg) or ("is not supported for generateContent" in msg)
+			if should_retry_beta or should_retry_model:
+				beta_base = os.getenv("GEMINI_API_BASE_BETA") or "https://generativelanguage.googleapis.com/v1beta"
+				# Prefer a widely available tools-capable model on v1beta
+				beta_model = os.getenv("GEMINI_MODEL_BETA") or "gemini-2.5-pro"
+				try:
+					data = self._post("generateContent", body, api_base=beta_base, model=beta_model)
+				except Exception as e2:
+					# As a last attempt, if model was the only issue on v1beta, try without toolConfig (tools only)
+					msg2 = str(e2)
+					if ("Unknown name \"toolConfig\"" in msg2) and function_declarations:
+						body_no_toolconfig = {
+							"contents": contents,
+							"tools": [{"functionDeclarations": function_declarations}],
+							"generationConfig": {"temperature": self.temperature},
+						}
+						data = self._post("generateContent", body_no_toolconfig, api_base=beta_base, model=beta_model)
+					else:
+						raise
+			else:
+				raise
 		candidates = (data or {}).get("candidates") or []
 		if not candidates:
 			return {"role": "assistant", "content": ""}

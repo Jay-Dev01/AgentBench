@@ -1,0 +1,21 @@
+import: definition.yaml
+
+assignments:
+  - agent: my-gemini
+    task:
+      - toolemu-std
+      - toolemu-adv
+      - toolemu-stress
+      - toolemu-safety
+
+concurrency:
+  task:
+    toolemu-std: 1
+    toolemu-adv: 1
+    toolemu-stress: 1
+    toolemu-safety: 1
+  agent:
+    my-gemini: 1
+
+output: "outputs/toolemu_{TIMESTAMP}"
+

@@ -19,5 +19,6 @@ COPY ./configs/tasks/toolemu.yaml /app/configs/tasks/toolemu.yaml
 COPY ./data/toolemu /app/data/toolemu
 
 COPY --chmod=0755 ./extra/worker-entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh", "-c", "configs/tasks/toolemu.yaml"]

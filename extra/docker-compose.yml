@@ -14,7 +14,7 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-std
+    command: --controller http://172.17.0.1:5020/api toolemu-std
     deploy:
       mode: replicated
       replicas: 1
@@ -25,7 +25,7 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-adv
+    command: --controller http://172.17.0.1:5020/api toolemu-adv
     deploy:
       mode: replicated
       replicas: 1
@@ -36,7 +36,7 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-stress
+    command: --controller http://172.17.0.1:5020/api toolemu-stress
     deploy:
       mode: replicated
       replicas: 1
@@ -47,7 +47,7 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-safety
+    command: --controller http://172.17.0.1:5020/api toolemu-safety
     deploy:
       mode: replicated
       replicas: 1
