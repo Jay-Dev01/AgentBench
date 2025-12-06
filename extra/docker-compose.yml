@@ -5,7 +5,8 @@ services:
   controller:
     image: jingbh/agentrl-controller:latest
     container_name: agentrl-controller
-    network_mode: host
+    ports:
+      - "5020:5020"
     command:
       - controller
 
@@ -13,7 +14,9 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/alfworld/Dockerfile
-    command: --controller http://172.17.0.1:5020/api alfworld-std
+    command: --controller http://controller:5020/api alfworld-std
+    ports:
+      - "5021:5021"
     deploy:
       mode: replicated
       replicas: 1
@@ -86,4 +89,5 @@ services:
   redis:
     image: redis:7
     container_name: redis
-    network_mode: host
+    ports:
+      - "6379:6379"
