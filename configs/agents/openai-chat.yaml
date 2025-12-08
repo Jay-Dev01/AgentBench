@@ -1,0 +1,11 @@
+module: src.client.agents.HTTPAgent
+parameters:
+  url: https://algoverse-ab.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview
+  headers:
+    Content-Type: application/json
+    api-key: ${AZURE_OPENAI_API_KEY}
+  body:
+    temperature: 0
+  prompter:
+    name: openai_passthrough
+  return_format: openai_chat

@@ -17,6 +17,4 @@ src/server/tasks/card_game/result
 .dockerfile
 .dockerfile-cache
 analysis
-
-# API keys - DO NOT COMMIT
-configs/agents/openai-chat.yaml
+venv/
