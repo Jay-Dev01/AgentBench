@@ -228,14 +228,102 @@ docker compose down
 
 ---
 
-## Running Other Tasks
+## Running Different Tasks
 
-To run other tasks (dbbench, os_interaction, etc.), you need to:
+All tasks are pre-configured. To switch between tasks:
 
-1. Build the required Docker images (see README.md)
-2. Update `configs/assignments/default.yaml` to include the task
-3. Add the worker address to `WORKER_ADDRESSES` in `src/client/task.py`
-4. Start the corresponding Docker service
+### Option 1: Use the run script
+
+```bash
+chmod +x run_task.sh
+./run_task.sh alfworld-std   # or dbbench-std, os-std, kg-std, webshop-std
+```
+
+### Option 2: Manual setup
+
+#### 1. Edit `configs/assignments/default.yaml`
+
+Uncomment the task you want to run:
+
+```yaml
+    task:
+      # - alfworld-std      # House-holding tasks
+      - dbbench-std         # Database tasks (uncomment this one)
+      # - os-std            # OS interaction tasks
+      # - kg-std            # Knowledge graph tasks
+      # - webshop-std       # Web shopping tasks
+```
+
+#### 2. Start the Docker service
+
+```bash
+cd ~/AgentBench/extra
+
+# For alfworld (house-holding)
+docker compose up -d controller redis alfworld-std
+
+# For dbbench (database)
+docker compose up -d controller redis dbbench-std
+
+# For os-std (OS interaction) - requires building images first
+docker compose up -d controller redis os_interaction-std
+
+# For kg-std (knowledge graph) - requires freebase data
+docker compose up -d controller redis knowledgegraph-std freebase
+
+# For webshop (web shopping) - requires ~16GB RAM
+docker compose up -d controller redis webshop-std
+```
+
+#### 3. Run the assigner
+
+```bash
+cd ~/AgentBench
+source venv/bin/activate
+python -m src.assigner
+```
+
+---
+
+## Task-Specific Requirements
+
+### OS Interaction (os-std)
+
+Build the required Docker images first:
+
+```bash
+cd ~/AgentBench
+docker build -t local-os/default -f data/os_interaction/res/dockerfiles/default data/os_interaction/res/dockerfiles
+docker build -t local-os/packages -f data/os_interaction/res/dockerfiles/packages data/os_interaction/res/dockerfiles
+docker build -t local-os/ubuntu -f data/os_interaction/res/dockerfiles/ubuntu data/os_interaction/res/dockerfiles
+```
+
+### Knowledge Graph (kg-std)
+
+Requires Freebase data:
+
+1. Download data from [Freebase-Setup](https://github.com/dki-lab/Freebase-Setup)
+2. Extract and place at `./extra/virtuoso_db/virtuoso.db`
+3. Start with: `docker compose up -d controller redis knowledgegraph-std freebase`
+
+### WebShop (webshop-std)
+
+- Requires ~16GB RAM
+- Takes ~3 minutes to start
+- Start with: `docker compose up -d controller redis webshop-std`
+
+---
+
+## Port Mapping Reference
+
+| Task | Host Port | Worker Port |
+|------|-----------|-------------|
+| Controller | 5020 | 5020 |
+| alfworld-std | 5021 | 5021 |
+| dbbench-std | 5022 | 5021 |
+| os-std | 5023 | 5021 |
+| kg-std | 5024 | 5021 |
+| webshop-std | 5025 | 5021 |
 
 ---
 

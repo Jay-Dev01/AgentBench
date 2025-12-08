@@ -3,13 +3,22 @@ import: definition.yaml
 concurrency:
   task:
     alfworld-std: 1
+    dbbench-std: 1
+    os-std: 1
+    kg-std: 1
+    webshop-std: 1
   agent:
     gpt-4o-mini: 1
 
 assignments: # List[Assignment] | Assignment
-  - agent: # "task": List[str] | str ,  "agent": List[str] | str
+  - agent:
       - gpt-4o-mini
     task:
-      - alfworld-std
+      # ===== UNCOMMENT THE TASK(S) YOU WANT TO RUN =====
+      - alfworld-std      # House-holding tasks (ALFWorld)
+      # - dbbench-std     # Database tasks
+      # - os-std          # OS interaction tasks
+      # - kg-std          # Knowledge graph tasks (requires freebase)
+      # - webshop-std     # Web shopping tasks (requires ~16GB RAM)
 
 output: "outputs/{TIMESTAMP}"

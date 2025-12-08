@@ -18,8 +18,13 @@ class TaskError(enum.Enum):
 
 
 # Direct worker address mapping (bypassing buggy controller)
+# Add port mappings in docker-compose.yml for each worker you want to use
 WORKER_ADDRESSES = {
     "alfworld-std": "http://localhost:5021/api",
+    "dbbench-std": "http://localhost:5022/api",
+    "os-std": "http://localhost:5023/api",
+    "kg-std": "http://localhost:5024/api",
+    "webshop-std": "http://localhost:5025/api",
 }
 
 
