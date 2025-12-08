@@ -199,9 +199,9 @@ docker compose up -d controller redis alfworld-std
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Python        │     │   Controller     │     │   ALFWorld      │
-│   Assigner      │────▶│   (port 5020)    │────▶│   Worker        │
-│                 │     │                  │     │   (port 5021)   │
+│   Python        │     │   Controller     │     │   Task          │
+│   Assigner      │────▶│   (port 5020)    │────▶│   Workers       │
+│                 │     │                  │     │   (ports 5021+) │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
         │                                                 │
         │  (direct communication - bypasses controller)   │
@@ -215,7 +215,7 @@ docker compose up -d controller redis alfworld-std
 └─────────────────┘
 ```
 
-**Note:** The Python client talks directly to the worker (port 5021) because the controller has a bug that prevents proper `/interact` forwarding.
+**Note:** The Python client talks directly to the worker because the controller has a bug that prevents proper `/interact` forwarding.
 
 ---
 
@@ -228,18 +228,47 @@ docker compose down
 
 ---
 
+## Available Tasks
+
+AgentBench includes multiple benchmark tasks across different domains:
+
+### Core Tasks (Build from source)
+
+| Task | Description | Docker Service | Host Port |
+|------|-------------|----------------|-----------|
+| **alfworld-std** | Household tasks (ALFWorld) | `alfworld-std` | 5021 |
+| **dbbench-std** | Database benchmark | `dbbench-std` | 5022 |
+| **os-std** | OS interaction tasks | `os_interaction-std` | 5023 |
+| **kg-std** | Knowledge graph (KGQA) | `knowledgegraph-std` | 5024 |
+| **webshop-std** | Web shopping tasks | `webshop-std` | 5025 |
+
+### ToolEmu Tasks (Build from source)
+
+| Task | Description | Docker Service | Host Port |
+|------|-------------|----------------|-----------|
+| **toolemu-std** | Standard tool emulation | `toolemu-std` | 5026 |
+| **toolemu-adv** | Adversarial mode (30% failure) | `toolemu-adv` | 5027 |
+| **toolemu-stress** | Stress mode (50% failure) | `toolemu-stress` | 5028 |
+| **toolemu-safety** | Safety-focused evaluation | `toolemu-safety` | 5029 |
+
+### Pre-built Image Tasks (Pull from Docker Hub)
+
+| Task | Description | Docker Service | Host Port |
+|------|-------------|----------------|-----------|
+| **m2w-std** | Mind2Web standard | `mind2web-std` | 5030 |
+| **m2w-dev** | Mind2Web dev set | `mind2web-dev` | 5031 |
+| **cg-std** | Card Game (Aquawar) standard | `card_game-std` | 5032 |
+| **cg-dev** | Card Game dev set | `card_game-dev` | 5033 |
+| **ltp-std** | Lateral Thinking Puzzles std | `ltp-std` | 5034 |
+| **ltp-dev** | Lateral Thinking Puzzles dev | `ltp-dev` | 5035 |
+| **avalon-dev-naive** | Avalon naive mode | `avalon-dev-naive` | 5036 |
+| **avalon-dev-single** | Avalon single mode | `avalon-dev-single` | 5037 |
+
+---
+
 ## Running Different Tasks
 
-All tasks are pre-configured. To switch between tasks:
-
-### Option 1: Use the run script
-
-```bash
-chmod +x run_task.sh
-./run_task.sh alfworld-std   # or dbbench-std, os-std, kg-std, webshop-std
-```
-
-### Option 2: Manual setup
+### Option 1: Quick Start
 
 #### 1. Edit `configs/assignments/default.yaml`
 
@@ -247,11 +276,10 @@ Uncomment the task you want to run:
 
 ```yaml
     task:
-      # - alfworld-std      # House-holding tasks
-      - dbbench-std         # Database tasks (uncomment this one)
-      # - os-std            # OS interaction tasks
-      # - kg-std            # Knowledge graph tasks
-      # - webshop-std       # Web shopping tasks
+      # - alfworld-std        # House-holding tasks
+      - dbbench-std           # Database tasks (uncomment this one)
+      # - os-std              # OS interaction tasks
+      # ... etc
 ```
 
 #### 2. Start the Docker service
@@ -259,20 +287,11 @@ Uncomment the task you want to run:
 ```bash
 cd ~/AgentBench/extra
 
-# For alfworld (house-holding)
-docker compose up -d controller redis alfworld-std
+# For core tasks (build from source)
+docker compose up -d controller redis <service-name>
 
-# For dbbench (database)
-docker compose up -d controller redis dbbench-std
-
-# For os-std (OS interaction) - requires building images first
-docker compose up -d controller redis os_interaction-std
-
-# For kg-std (knowledge graph) - requires freebase data
-docker compose up -d controller redis knowledgegraph-std freebase
-
-# For webshop (web shopping) - requires ~16GB RAM
-docker compose up -d controller redis webshop-std
+# For pre-built tasks (pull from Docker Hub)
+docker compose up -d controller redis <service-name>
 ```
 
 #### 3. Run the assigner
@@ -283,9 +302,28 @@ source venv/bin/activate
 python -m src.assigner
 ```
 
+### Option 2: Use the run script
+
+```bash
+chmod +x run_task.sh
+./run_task.sh alfworld-std   # or any other task name
+```
+
 ---
 
-## Task-Specific Requirements
+## Task-Specific Commands
+
+### ALFWorld (alfworld-std)
+
+```bash
+docker compose up -d controller redis alfworld-std
+```
+
+### Database Benchmark (dbbench-std)
+
+```bash
+docker compose up -d controller redis dbbench-std
+```
 
 ### OS Interaction (os-std)
 
@@ -298,36 +336,117 @@ docker build -t local-os/packages -f data/os_interaction/res/dockerfiles/package
 docker build -t local-os/ubuntu -f data/os_interaction/res/dockerfiles/ubuntu data/os_interaction/res/dockerfiles
 ```
 
+Then start:
+
+```bash
+docker compose up -d controller redis os_interaction-std
+```
+
 ### Knowledge Graph (kg-std)
 
 Requires Freebase data:
 
 1. Download data from [Freebase-Setup](https://github.com/dki-lab/Freebase-Setup)
 2. Extract and place at `./extra/virtuoso_db/virtuoso.db`
-3. Start with: `docker compose up -d controller redis knowledgegraph-std freebase`
+3. Start with:
+
+```bash
+docker compose up -d controller redis knowledgegraph-std freebase
+```
 
 ### WebShop (webshop-std)
 
 - Requires ~16GB RAM
 - Takes ~3 minutes to start
-- Start with: `docker compose up -d controller redis webshop-std`
+
+```bash
+docker compose up -d controller redis webshop-std
+```
+
+### ToolEmu Tasks
+
+```bash
+# Standard mode
+docker compose up -d controller redis toolemu-std
+
+# Adversarial mode (30% failure injection)
+docker compose up -d controller redis toolemu-adv
+
+# Stress mode (50% failure injection)
+docker compose up -d controller redis toolemu-stress
+
+# Safety-focused evaluation
+docker compose up -d controller redis toolemu-safety
+```
+
+### Mind2Web (m2w-std, m2w-dev)
+
+```bash
+# Standard set
+docker compose up -d controller redis mind2web-std
+
+# Dev set
+docker compose up -d controller redis mind2web-dev
+```
+
+### Card Game / Aquawar (cg-std, cg-dev)
+
+```bash
+# Standard set
+docker compose up -d controller redis card_game-std
+
+# Dev set
+docker compose up -d controller redis card_game-dev
+```
+
+### Lateral Thinking Puzzles (ltp-std, ltp-dev)
+
+```bash
+# Standard set
+docker compose up -d controller redis ltp-std
+
+# Dev set
+docker compose up -d controller redis ltp-dev
+```
+
+### Avalon (avalon-dev-naive, avalon-dev-single)
+
+```bash
+# Naive mode
+docker compose up -d controller redis avalon-dev-naive
+
+# Single mode
+docker compose up -d controller redis avalon-dev-single
+```
 
 ---
 
 ## Port Mapping Reference
 
-| Task | Host Port | Worker Port |
-|------|-----------|-------------|
+| Task | Host Port | Internal Port |
+|------|-----------|---------------|
 | Controller | 5020 | 5020 |
+| Redis | 6379 | 6379 |
 | alfworld-std | 5021 | 5021 |
 | dbbench-std | 5022 | 5021 |
 | os-std | 5023 | 5021 |
 | kg-std | 5024 | 5021 |
 | webshop-std | 5025 | 5021 |
+| toolemu-std | 5026 | 5021 |
+| toolemu-adv | 5027 | 5021 |
+| toolemu-stress | 5028 | 5021 |
+| toolemu-safety | 5029 | 5021 |
+| m2w-std | 5030 | 5021 |
+| m2w-dev | 5031 | 5021 |
+| cg-std | 5032 | 5021 |
+| cg-dev | 5033 | 5021 |
+| ltp-std | 5034 | 5021 |
+| ltp-dev | 5035 | 5021 |
+| avalon-dev-naive | 5036 | 5021 |
+| avalon-dev-single | 5037 | 5021 |
 
 ---
 
 ## License
 
 Apache-2.0 - See [LICENSE](LICENSE) for details.
-

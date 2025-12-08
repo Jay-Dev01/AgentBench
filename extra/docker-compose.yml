@@ -14,7 +14,9 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-std
+    command: --controller http://controller:5020/api toolemu-std
+    ports:
+      - "5026:5021"
     deploy:
       mode: replicated
       replicas: 1
@@ -25,7 +27,9 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-adv
+    command: --controller http://controller:5020/api toolemu-adv
+    ports:
+      - "5027:5021"
     deploy:
       mode: replicated
       replicas: 1
@@ -36,7 +40,9 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-stress
+    command: --controller http://controller:5020/api toolemu-stress
+    ports:
+      - "5028:5021"
     deploy:
       mode: replicated
       replicas: 1
@@ -47,7 +53,9 @@ services:
     build:
       context: ..
       dockerfile: src/server/tasks/toolemu/Dockerfile
-    command: --controller http://host.docker.internal:5020/api toolemu-safety
+    command: --controller http://controller:5020/api toolemu-safety
+    ports:
+      - "5029:5021"
     deploy:
       mode: replicated
       replicas: 1
@@ -124,6 +132,99 @@ services:
     command: --controller http://controller:5020/api webshop-std
     ports:
       - "5025:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  # Mind2Web - Web browsing tasks
+  # NOTE: Task registers as "Mind2Web-std" / "Mind2Web-dev" with the controller
+  mind2web-std:
+    image: longinyu/agentbench-mind2web
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api Mind2Web-std"]
+    ports:
+      - "5030:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  mind2web-dev:
+    image: longinyu/agentbench-mind2web
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api Mind2Web-dev"]
+    ports:
+      - "5031:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  # Card Game - Digital card game (Aquawar)
+  card_game-std:
+    image: longinyu/agentbench-card_game
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api cg-std"]
+    ports:
+      - "5032:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  card_game-dev:
+    image: longinyu/agentbench-card_game
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api cg-dev"]
+    ports:
+      - "5033:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  # Lateral Thinking Puzzles
+  ltp-std:
+    image: longinyu/agentbench-ltp
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api ltp-std"]
+    ports:
+      - "5034:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  ltp-dev:
+    image: longinyu/agentbench-ltp
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api ltp-dev"]
+    ports:
+      - "5035:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  # Avalon - Multi-agent game
+  avalon-dev-naive:
+    image: longinyu/agentbench-avalon
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api avalon-dev-naive"]
+    ports:
+      - "5036:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  avalon-dev-single:
+    image: longinyu/agentbench-avalon
+    entrypoint: ["/bin/bash", "-c", "python -m agentrl.worker --controller http://controller:5020/api --self http://$$(hostname -i):5021/api avalon-dev-single"]
+    ports:
+      - "5037:5021"
     deploy:
       mode: replicated
       replicas: 1

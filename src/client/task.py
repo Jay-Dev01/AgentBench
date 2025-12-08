@@ -20,11 +20,33 @@ class TaskError(enum.Enum):
 # Direct worker address mapping (bypassing buggy controller)
 # Add port mappings in docker-compose.yml for each worker you want to use
 WORKER_ADDRESSES = {
+    # ALFWorld - Household tasks
     "alfworld-std": "http://localhost:5021/api",
+    # Database Benchmark
     "dbbench-std": "http://localhost:5022/api",
+    # OS Interaction
     "os-std": "http://localhost:5023/api",
+    # Knowledge Graph
     "kg-std": "http://localhost:5024/api",
+    # WebShop
     "webshop-std": "http://localhost:5025/api",
+    # ToolEmu variants
+    "toolemu-std": "http://localhost:5026/api",
+    "toolemu-adv": "http://localhost:5027/api",
+    "toolemu-stress": "http://localhost:5028/api",
+    "toolemu-safety": "http://localhost:5029/api",
+    # Mind2Web - Web browsing (registers as Mind2Web-std/Mind2Web-dev)
+    "Mind2Web-std": "http://localhost:5030/api",
+    "Mind2Web-dev": "http://localhost:5031/api",
+    # Card Game (Aquawar)
+    "cg-std": "http://localhost:5032/api",
+    "cg-dev": "http://localhost:5033/api",
+    # Lateral Thinking Puzzles
+    "ltp-std": "http://localhost:5034/api",
+    "ltp-dev": "http://localhost:5035/api",
+    # Avalon
+    "avalon-dev-naive": "http://localhost:5036/api",
+    "avalon-dev-single": "http://localhost:5037/api",
 }
 
 
