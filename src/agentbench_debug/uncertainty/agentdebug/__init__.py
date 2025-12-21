@@ -7,11 +7,14 @@ agent trajectories within AgentBench environments.
 """
 
 from .error_definitions_loader import ErrorDefinitionsLoader
-from .fine_grain_analysis import ErrorTypeDetector
-from .critical_error_detection import CriticalErrorAnalyzer
+from .fine_grained_analysis import FineGrainedAnalyzer, ModuleError, StepAnalysis
+from .critical_error_detection_unified import detect_critical_error_unified, CriticalError
 
 __all__ = [
     "ErrorDefinitionsLoader",
-    "ErrorTypeDetector",
-    "CriticalErrorAnalyzer",
+    "FineGrainedAnalyzer",
+    "ModuleError",
+    "StepAnalysis",
+    "detect_critical_error_unified",
+    "CriticalError",
 ]

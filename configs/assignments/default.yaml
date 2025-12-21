@@ -64,7 +64,7 @@ assignments: # List[Assignment] | Assignment
       # --- Lateral Thinking Puzzles ---
       # NOTE: Pre-built images don't work with FC version (missing agentrl module)
       # - ltp-std           # LTP standard (BROKEN - old image format)
-      # - ltp-dev           # LTP dev set (BROKEN - old image format)
+      # - ltp-dev           # LTP dev set (BROKEN - old imag   format)
       #
       # --- Avalon (Multi-agent game) ---
       # NOTE: Pre-built images don't work with FC version (missing agentrl module)

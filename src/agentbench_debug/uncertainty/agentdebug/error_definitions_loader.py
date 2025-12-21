@@ -18,7 +18,7 @@ Python 3.8+
 """
 
 from __future__ import annotations
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 
 NO_ERROR = "no_error"
 
@@ -357,3 +357,4 @@ class ErrorDefinitionsLoader:
         if style == "pascal":
             return [_to_pascal(x) for x in items]
         return items
+

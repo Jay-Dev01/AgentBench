@@ -15,15 +15,14 @@ Author: unified from AgentDebug fine_grained_analysis.py (V5) for AgentBench
 import json
 import os
 import asyncio
-import aiohttp
 import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import logging
 
-# IMPORTANT: import your unified loader (you added earlier)
-from agentbench_debug.error_definitions_loader import ErrorDefinitionsLoader
+# Import the error definitions loader from the same package
+from .error_definitions_loader import ErrorDefinitionsLoader
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,7 +59,7 @@ class FineGrainedAnalyzer:
     Output schema is the canonical input for Phase 2 (critical error detection).
     """
 
-    def __init__(self, api_config: Dict[str, Any]):
+    def __init__(self, api_config: Optional[Dict[str, Any]] = None):
         """
         api_config = {
           "api_key": "...",
@@ -70,12 +69,16 @@ class FineGrainedAnalyzer:
           "timeout": 60,
           "max_retries": 3
         }
+        
+        If api_config is None, LLM-based detection will be disabled.
         """
-        self.config = api_config
-        self.headers = {
-            "Authorization": f"Bearer {api_config['api_key']}",
-            "Content-Type": "application/json",
-        }
+        self.config = api_config or {}
+        self.headers = {}
+        if api_config and api_config.get('api_key'):
+            self.headers = {
+                "Authorization": f"Bearer {api_config['api_key']}",
+                "Content-Type": "application/json",
+            }
         self.loader = ErrorDefinitionsLoader()
 
         # cache of valid types (for reference / future validation if needed)
@@ -126,7 +129,7 @@ class FineGrainedAnalyzer:
         for m in messages:
             if m.get("role") == "user":
                 text = m.get("content", "")
-                # Try common “Your task is:” pattern first
+                # Try common "Your task is:" pattern first
                 if "Your task is:" in text:
                     return text.split("Your task is:")[1].split("\n")[0].strip()
                 # Fall back to first imperative-like sentence
@@ -203,6 +206,16 @@ class FineGrainedAnalyzer:
 
         # Quick scan for obviously system-ish traces
         if env_response and any(k in env_response.lower() for k in ["error", "exception", "timeout", "crash", "stack trace"]):
+            # If no LLM config, use heuristic
+            if not self.config.get('api_key'):
+                return ModuleError(
+                    module_name="system",
+                    error_type="environment_error",
+                    error_detected=True,
+                    evidence=env_response[:200],
+                    reasoning="Detected error keywords in environment response"
+                )
+            
             prompt = f"""
 Is the following an agent-side reasoning error or a SYSTEM error?
 
@@ -252,6 +265,16 @@ Return JSON:
         current_step_input: str,
         environment: str
     ) -> ModuleError:
+        # If no LLM config, return no error detected
+        if not self.config.get('api_key'):
+            return ModuleError(
+                module_name=module_name,
+                error_type="no_error",
+                error_detected=False,
+                evidence="LLM not configured",
+                reasoning="Skipping LLM-based detection"
+            )
+        
         # Build context stack based on module dependencies (same-step outputs)
         context = f"Current Step Input (user says + history):\n{current_step_input}\n\n"
         if module_name in ("reflection", "planning", "action"):
@@ -330,7 +353,7 @@ Return ONLY JSON:
         # Check system first (applies to the entire step)
         system_err = await self._check_system_errors(step, env_response)
         if system_err and system_err.error_detected:
-            # Attach a synthetic “system” line into summary; Phase 2 will still read per-module keys.
+            # Attach a synthetic "system" line into summary; Phase 2 will still read per-module keys.
             errors["system"] = system_err  # side channel (not in dataclass fields)
 
         # Skip memory/reflection on step 1 (no prior history to recall/reflect)
@@ -442,55 +465,42 @@ Return ONLY JSON:
         return out
 
     # ---------- LLM helpers ----------
-        async def call_llm(self, prompt: str) -> str:
-        """
-        Call Gemini API (generateContent) using an OpenAI-like config.
-        Expects config fields:
-          - api_key
-          - model  (e.g. 'gemini-1.5-flash')
-          - base_url (e.g. 'https://generativelanguage.googleapis.com/v1beta')
-        """
-        import aiohttp
-        import asyncio
-
-        api_key = self.config["api_key"]
-        model = self.config["model"]
-        base_url = self.config.get("base_url", "https://generativelanguage.googleapis.com/v1beta")
-
-        # Gemini endpoint: {base_url}/models/{model}:generateContent
-        url = f"{base_url.rstrip('/')}/models/{model}:generateContent"
-
-        # We already bake the "system" instructions into the prompt text,
-        # so Gemini just gets one big text chunk.
+    async def _call_llm(self, prompt: str, system_role: str) -> str:
+        """Call LLM API. Requires aiohttp."""
+        try:
+            import aiohttp
+        except ImportError:
+            raise ImportError("aiohttp is required for LLM calls. Install with: pip install aiohttp")
+        
         payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt}
-                    ]
-                }
-            ]
+            "model": self.config["model"],
+            "messages": [
+                {"role": "system", "content": system_role},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": self.config.get("temperature", 0.0),
+            "response_format": {"type": "json_object"}
         }
+        proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
 
-        params = {"key": api_key}
-        timeout = aiohttp.ClientTimeout(total=self.config.get("timeout", 60))
-        max_retries = self.config.get("max_retries", 3)
-
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            for attempt in range(max_retries):
+        async with aiohttp.ClientSession() as session:
+            last_err = None
+            for attempt in range(self.config.get("max_retries", 3)):
                 try:
-                    async with session.post(url, params=params, json=payload) as resp:
-                        resp.raise_for_status()
-                        data = await resp.json()
-
-                        # Gemini style: candidates[0].content.parts[0].text
-                        return data["candidates"][0]["content"]["parts"][0]["text"]
+                    async with session.post(
+                        self.config["base_url"],
+                        headers=self.headers,
+                        json=payload,
+                        timeout=aiohttp.ClientTimeout(total=self.config.get("timeout", 60)),
+                        proxy=proxy if proxy else None
+                    ) as r:
+                        r.raise_for_status()
+                        data = await r.json()
+                        return data["choices"][0]["message"]["content"]
                 except Exception as e:
-                    if attempt == max_retries - 1:
-                        logger.error(f"Gemini API call failed: {e}")
-                        raise
+                    last_err = e
                     await asyncio.sleep(2 ** attempt)
-
+            raise RuntimeError(f"LLM call failed after retries: {last_err}")
 
     @staticmethod
     def _strip_code_fences(text: str) -> str:

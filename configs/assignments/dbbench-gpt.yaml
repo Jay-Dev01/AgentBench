@@ -1,0 +1,14 @@
+import: definition.yaml
+
+assignments:
+  - agent: gpt-4-0613
+    task:
+      - dbbench-std
+
+concurrency:
+  task:
+    dbbench-std: 1
+  agent:
+    gpt-4-0613: 1
+
+output: "outputs/{TIMESTAMP}"

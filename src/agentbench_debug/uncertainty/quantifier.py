@@ -1,5 +1,5 @@
-import math, numpy as np
-from typing import List, Optional, Dict, Any, TypedDict, Literal
+from collections import Counter
+from typing import Any, Dict, List, Literal, TypedDict
 
 Status = Literal["confident","low_confidence"]
 
@@ -12,23 +12,34 @@ class UOut(TypedDict):
     meta: Dict[str, Any]
 
 class UncertaintyQuantifier:
-    def __init__(self, threshold: float = 0.35):
+    """Compute disagreement-based uncertainty from multiple sampled outputs."""
+
+    def __init__(self, threshold: float = 0.35) -> None:
         self.threshold = threshold
 
     @staticmethod
     def _agreement_uncertainty(outputs: List[str]) -> float:
-        if not outputs: return 1.0
-        most = max(outputs.count(x) for x in set(outputs))
-        agree = most / len(outputs)
-        return 1.0 - agree  # higher = more uncertain
+        if not outputs:
+            return 1.0
+
+        normalized = [o.strip() for o in outputs if o and o.strip()]
+        if not normalized:
+            return 1.0
+
+        counter = Counter(normalized)
+        most_common_count = counter.most_common(1)[0][1]
+        agreement = most_common_count / len(normalized)
+        return 1.0 - agreement  # higher = more uncertain
 
     def from_samples(self, step_idx: int, module: str, samples: List[str]) -> UOut:
-        u = self._agreement_uncertainty(samples)
+        score = float(self._agreement_uncertainty(samples))
+        status: Status = "low_confidence" if score > self.threshold else "confident"
+
         return {
             "step_idx": step_idx,
             "module": module,
             "method": "self_consistency",
-            "score": float(u),
-            "status": "low_confidence" if u > self.threshold else "confident",
-            "meta": {"k": len(samples)}
+            "score": score,
+            "status": status,
+            "meta": {"k": len(samples), "threshold": self.threshold},
         }

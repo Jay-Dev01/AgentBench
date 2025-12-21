@@ -8,4 +8,4 @@ parameters:
     temperature: 0
   prompter:
     name: openai_passthrough
-  return_format: openai_chat
+  return_format: openai_auto

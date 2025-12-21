@@ -1,0 +1,5 @@
+my-gemini:
+  module: "src.client.agents.my_gemini_chat"
+  class: "MyGeminiChat"
+  parameters:
+    model: "gemini-2.5-pro"

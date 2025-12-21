@@ -1,0 +1,14 @@
+import: definition.yaml
+
+assignments:
+  - agent: my-gemini
+    task:
+      - dbbench-std
+
+concurrency:
+  task:
+    dbbench-std: 1
+  agent:
+    my-gemini: 1
+
+output: "outputs/{TIMESTAMP}"
