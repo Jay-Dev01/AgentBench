@@ -33,7 +33,7 @@ SWE-rebench has been successfully integrated into your AgentBench project! This 
 
 **IMPORTANT**: Before running SWE-bench tasks, you must configure direct worker communication to avoid "INTERACT_FAILED" errors.
 
-Edit `src/client/task.py` and ensure the `WORKER_ADDRESSES` mapping includes:
+Edit `src/client/task.py` and ensure the `WORKER_ADDRESSES` mapping includes all SWE-bench workers:
 
 ```python
 WORKER_ADDRESSES = {
@@ -42,7 +42,11 @@ WORKER_ADDRESSES = {
     "os-std": "http://localhost:5023/api",
     "kg-std": "http://localhost:5024/api",
     "webshop-std": "http://localhost:5025/api",
-    "swebench-rebench-dev": "http://localhost:5028/api",  # This line is critical!
+    "swebench-rebench-dev": "http://localhost:5028/api",
+    "swebench-rebench-100": "http://localhost:5031/api",
+    "swebench-rebench-std": "http://localhost:5029/api",
+    "swebench-rebench-full": "http://localhost:5030/api",
+    "swebench-rebench-full-with-images": "http://localhost:5032/api",
 }
 ```
 
