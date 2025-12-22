@@ -36,7 +36,7 @@ This creates:
 
 **This step is essential to avoid "INTERACT_FAILED" errors.**
 
-Edit `src/client/task.py` and ensure the `WORKER_ADDRESSES` mapping includes:
+Edit `src/client/task.py` and ensure the `WORKER_ADDRESSES` mapping includes all SWE-bench workers:
 
 ```python
 WORKER_ADDRESSES = {
@@ -45,7 +45,11 @@ WORKER_ADDRESSES = {
     "os-std": "http://localhost:5023/api",
     "kg-std": "http://localhost:5024/api",
     "webshop-std": "http://localhost:5025/api",
-    "swebench-rebench-dev": "http://localhost:5028/api",  # This line is critical!
+    "swebench-rebench-dev": "http://localhost:5028/api",
+    "swebench-rebench-100": "http://localhost:5031/api",
+    "swebench-rebench-std": "http://localhost:5029/api",
+    "swebench-rebench-full": "http://localhost:5030/api",
+    "swebench-rebench-full-with-images": "http://localhost:5032/api",
 }
 ```
 
@@ -103,13 +107,31 @@ swebench-rebench-dev:
 # Navigate to the Docker compose directory
 cd extra
 
-# Build the SWE-bench container (required after config changes)
-# or whatever dataset you wanna use, example swebench-rebench-100, swebench-rebench-full-with-images:
+# Build the SWE-bench container for your chosen dataset
+# You can use any of the following tasks defined in configs/tasks/swebench_rebench.yaml:
+# - swebench-rebench-dev (100 instances, port 5028)
+# - swebench-rebench-100 (100 instances with images, port 5031)
+# - swebench-rebench-std (1,000 instances, port 5029)
+# - swebench-rebench-full (21,336 instances, port 5030)
+# - swebench-rebench-full-with-images (full with images only, port 5032)
 
+# Example: Build the dev task
 docker-compose build swebench-rebench-dev
 
-# Start all required services
+# Or build a different task:
+# docker-compose build swebench-rebench-100
+# docker-compose build swebench-rebench-std
+# docker-compose build swebench-rebench-full
+# docker-compose build swebench-rebench-full-with-images
+
+# Start all required services for your chosen task
 docker-compose up -d controller redis swebench-rebench-dev
+
+# Or start a different task:
+# docker-compose up -d controller redis swebench-rebench-100
+# docker-compose up -d controller redis swebench-rebench-std
+# docker-compose up -d controller redis swebench-rebench-full
+# docker-compose up -d controller redis swebench-rebench-full-with-images
 
 # Verify all containers are running
 docker ps
@@ -119,7 +141,9 @@ You should see:
 
 - `agentrl-controller` on port 5020
 - `redis` on port 6379
-- `agentbench-fc-swebench-rebench-dev-1` on port 5028
+- Your chosen SWE-bench worker container on its respective port (see task list above)
+
+**Note**: Each SWE-bench task variant runs on a different port, so you can run multiple tasks simultaneously if needed. Make sure your assignment configuration (in `configs/assignments/`) matches the task you started.
 
 ### 7. Verify the Setup
 
@@ -142,9 +166,25 @@ curl http://localhost:5028/api/status 2>/dev/null || echo "SWE-bench worker not 
 # Navigate back to project root
 cd ..
 
-# Run the assignment
+# Run the assignment for your chosen task
+# Available assignment configurations in configs/assignments/:
+# - swebench_rebench_test.yaml (uses dev dataset)
+# - swebench_rebench_100.yaml (uses 100 samples with images)
+# - swebench_rebench_standard.yaml (uses standard dataset)
+# - swebench_rebench_full.yaml (uses full dataset)
+# - swebench_rebench_full_with_images.yaml (uses full with images only)
+
+# Example: Run the test assignment (dev dataset)
 python -m src.assigner --config configs/assignments/swebench_rebench_test.yaml
+
+# Or run a different assignment:
+# python -m src.assigner --config configs/assignments/swebench_rebench_100.yaml
+# python -m src.assigner --config configs/assignments/swebench_rebench_standard.yaml
+# python -m src.assigner --config configs/assignments/swebench_rebench_full.yaml
+# python -m src.assigner --config configs/assignments/swebench_rebench_full_with_images.yaml
 ```
+
+**Important**: Make sure the Docker container for your chosen task is running before executing the assignment. For example, if running `swebench_rebench_100.yaml`, ensure the `swebench-rebench-100` container is started in Step 6.
 
 ## Understanding the Results
 
