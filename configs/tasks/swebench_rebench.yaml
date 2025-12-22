@@ -1,0 +1,110 @@
+default:
+  module: "src.server.tasks.swebench_rebench.SWEBenchRebenchTask"
+  parameters:
+    concurrency: 8
+    max_round: 20
+    command_timeout: 120
+
+    tools:
+      - type: "function"
+        function:
+          name: "bash_command"
+          description: "Execute a bash command in the repository environment at /testbed. Use this for git operations, running tests, searching files, etc."
+          parameters:
+            type: "object"
+            properties:
+              command:
+                type: "string"
+                description: "The bash command to execute (e.g., 'git log -1', 'pytest tests/', 'grep -r pattern .')."
+            required:
+              - "command"
+            additionalProperties: False
+
+      - type: "function"
+        function:
+          name: "read_file"
+          description: "Read the contents of a file from the repository."
+          parameters:
+            type: "object"
+            properties:
+              file_path:
+                type: "string"
+                description: "Path to the file relative to /testbed (e.g., 'src/main.py', 'tests/test_utils.py')."
+            required:
+              - "file_path"
+            additionalProperties: False
+
+      - type: "function"
+        function:
+          name: "search_code"
+          description: "Search for a pattern in Python files using grep."
+          parameters:
+            type: "object"
+            properties:
+              pattern:
+                type: "string"
+                description: "The pattern to search for."
+              directory:
+                type: "string"
+                description: "Directory to search in (relative to /testbed). Defaults to '.' (entire repo)."
+                default: "."
+            required:
+              - "pattern"
+            additionalProperties: False
+
+      - type: "function"
+        function:
+          name: "submit_patch"
+          description: "Submit your final patch solution. Only call this when you are confident your patch fixes the issue."
+          parameters:
+            type: "object"
+            properties:
+              patch:
+                type: "string"
+                description: "The complete patch in unified diff format (git diff output)."
+            required:
+              - "patch"
+            additionalProperties: False
+
+    env_driver: docker
+    env_options:
+      network_name: swebench_rebench_default
+      state_driver: redis
+      state_options:
+        connection:
+          host: 172.17.0.1
+
+swebench-rebench-dev:
+  parameters:
+    name: "swebench-rebench-dev"
+    data_file: "data/swebench_rebench/dev_with_images.jsonl"
+    output_file: "outputs/swebench_rebench_dev_predictions.jsonl"
+
+swebench-rebench-100:
+  parameters:
+    name: "swebench-rebench-100"
+    data_file: "data/swebench_rebench/standard_100_with_images.jsonl"
+    output_file: "outputs/swebench_rebench_100_predictions.jsonl"
+swebench-rebench-std:
+  parameters:
+    name: "swebench-rebench-std"
+    data_file: "data/swebench_rebench/standard.jsonl"
+    output_file: "outputs/swebench_rebench_std_predictions.jsonl"
+    concurrency: 16 # Higher concurrency for standard dataset
+    command_timeout: 120 # Increased timeout
+
+swebench-rebench-full-with-images:
+  parameters:
+    name: "swebench-rebench-full-with-images"
+    data_file: "data/swebench_rebench/full_with_images.jsonl"
+    output_file: "outputs/swebench_rebench_full_with_images_predictions.jsonl"
+    concurrency: 8 # Moderate concurrency for large dataset
+    command_timeout: 120 # Increased timeout for complex instances
+
+swebench-rebench-full:
+  parameters:
+    name: "swebench-rebench-full"
+    data_file: "data/swebench_rebench/full.jsonl"
+    output_file: "outputs/swebench_rebench_full_predictions.jsonl"
+    concurrency: 32 # Higher concurrency for full dataset
+    command_timeout: 180 # Even higher timeout

@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    alfworld-std: 1
+  agent:
+    gpt-4o-mini: 1
+
+assignments:
+  - agent:
+      - gpt-4o-mini
+    task:
+      - alfworld-std
+
+output: "outputs/{TIMESTAMP}"

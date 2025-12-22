@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    swebench-rebench-full: 8 # Even higher concurrency for full dataset
+  agent:
+    gpt-4o-mini: 8
+
+assignments:
+  - agent:
+      - gpt-4o-mini
+    task:
+      - swebench-rebench-full
+
+output: "outputs/{TIMESTAMP}"

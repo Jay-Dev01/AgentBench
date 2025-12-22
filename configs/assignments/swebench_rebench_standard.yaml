@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    swebench-rebench-std: 4 # Higher concurrency for larger dataset
+  agent:
+    gpt-4o-mini: 4
+
+assignments:
+  - agent:
+      - gpt-4o-mini
+    task:
+      - swebench-rebench-std
+
+output: "outputs/{TIMESTAMP}"

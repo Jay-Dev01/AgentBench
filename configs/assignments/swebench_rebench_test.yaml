@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    swebench-rebench-dev: 1
+  agent:
+    gpt-4o-mini: 1
+
+assignments:
+  - agent:
+      - gpt-4o-mini
+    task:
+      - swebench-rebench-dev
+
+output: "outputs/{TIMESTAMP}"

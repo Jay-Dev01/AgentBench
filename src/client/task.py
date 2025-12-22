@@ -25,6 +25,11 @@ WORKER_ADDRESSES = {
     "os-std": "http://localhost:5023/api",
     "kg-std": "http://localhost:5024/api",
     "webshop-std": "http://localhost:5025/api",
+    "swebench-rebench-dev": "http://localhost:5028/api",
+    "swebench-rebench-100": "http://localhost:5031/api",
+    "swebench-rebench-std": "http://localhost:5029/api",
+    "swebench-rebench-full": "http://localhost:5030/api",
+    "swebench-rebench-full-with-images": "http://localhost:5032/api",
 }
 
 

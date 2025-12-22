@@ -1,0 +1,15 @@
+import: definition.yaml
+
+assignments:
+  - agent:
+      - my-gemini
+    task:
+      - os-std
+
+output: "outputs/{TIMESTAMP}"
+
+concurrency:
+  task:
+    os-std: 1
+  agent:
+    my-gemini: 1

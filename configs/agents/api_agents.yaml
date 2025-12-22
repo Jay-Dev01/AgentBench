@@ -5,6 +5,11 @@ gpt-4o-mini:
         body:
             max_tokens: 512
 
+gpt-4:
+    import: "./gpt4-chat.yaml"
+    parameters:
+        name: "gpt-4"
+
 text-davinci-003:
     import: "./openai-text.yaml"
     parameters:
@@ -20,3 +25,8 @@ text-davinci-002:
         body:
             model: "text-davinci-002"
             max_tokens: 512
+
+my-gemini:
+    import: "./my-gemini.yaml"
+    parameters:
+        name: "my-gemini"

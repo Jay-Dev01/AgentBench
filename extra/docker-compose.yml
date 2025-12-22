@@ -1,7 +1,6 @@
 name: agentbench-fc
 
 services:
-
   controller:
     image: jingbh/agentrl-controller:latest
     container_name: agentrl-controller
@@ -11,6 +10,7 @@ services:
       - controller
 
   alfworld-std:
+    platform: linux/amd64
     build:
       context: ..
       dockerfile: src/server/tasks/alfworld/Dockerfile
@@ -80,6 +80,121 @@ services:
     command: --controller http://controller:5020/api webshop-std
     ports:
       - "5025:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-dev:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench/Dockerfile
+    command: --controller http://controller:5020/api swebench-dev
+    ports:
+      - "5026:5021"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-docker-test-single:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench_docker/Dockerfile
+    command: --controller http://controller:5020/api swebench-docker-test-single
+    ports:
+      - "5027:5021"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWEBENCH_DOCKER_TEST_SINGLE_PARAMETERS_DOCKER_CONFIG_NETWORK_NAME=agentbench-fc_default
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-rebench-dev:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench_rebench/Dockerfile
+    command: --controller http://controller:5020/api swebench-rebench-dev
+    ports:
+      - "5028:5021"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWEBENCH_REBENCH_DEV_PARAMETERS_ENV_OPTIONS_NETWORK_NAME=agentbench-fc_default
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-rebench-100:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench_rebench/Dockerfile
+    command: --controller http://controller:5020/api swebench-rebench-100
+    ports:
+      - "5031:5021"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWEBENCH_REBENCH_100_PARAMETERS_ENV_OPTIONS_NETWORK_NAME=agentbench-fc_default
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-rebench-std:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench_rebench/Dockerfile
+    command: --controller http://controller:5020/api swebench-rebench-std
+    ports:
+      - "5029:5021"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWEBENCH_REBENCH_STD_PARAMETERS_ENV_OPTIONS_NETWORK_NAME=agentbench-fc_default
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-rebench-full:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench_rebench/Dockerfile
+    command: --controller http://controller:5020/api swebench-rebench-full
+    ports:
+      - "5030:5021"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWEBENCH_REBENCH_FULL_PARAMETERS_ENV_OPTIONS_NETWORK_NAME=agentbench-fc_default
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - controller
+
+  swebench-rebench-full-with-images:
+    build:
+      context: ..
+      dockerfile: src/server/tasks/swebench_rebench/Dockerfile
+    command: --controller http://controller:5020/api swebench-rebench-full-with-images
+    ports:
+      - "5032:5021"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SWEBENCH_REBENCH_FULL_WITH_IMAGES_PARAMETERS_ENV_OPTIONS_NETWORK_NAME=agentbench-fc_default
     deploy:
       mode: replicated
       replicas: 1

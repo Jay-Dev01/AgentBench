@@ -1,12 +1,12 @@
 #!/bin/bash
-# AgentBench Task Runner
-# Usage: ./run_task.sh <task_name>
-# Example: ./run_task.sh alfworld-std
+# AgentBench Task Runner (macOS version)
+# Usage: ./run_task_mac.sh <task_name>
+# Example: ./run_task_mac.sh alfworld-std
 
 TASK=${1:-alfworld-std}
 
 echo "=========================================="
-echo "AgentBench Task Runner"
+echo "AgentBench Task Runner (macOS)"
 echo "=========================================="
 echo "Task: $TASK"
 echo ""
@@ -54,12 +54,14 @@ cd "$SCRIPT_DIR"
 
 echo "Step 1: Updating config to use $TASK_NAME..."
 # Update the default.yaml to use the selected task
-sed -i "s/^      - alfworld-std/      # - alfworld-std/" configs/assignments/default.yaml
-sed -i "s/^      - dbbench-std/      # - dbbench-std/" configs/assignments/default.yaml
-sed -i "s/^      - os-std/      # - os-std/" configs/assignments/default.yaml
-sed -i "s/^      - kg-std/      # - kg-std/" configs/assignments/default.yaml
-sed -i "s/^      - webshop-std/      # - webshop-std/" configs/assignments/default.yaml
-sed -i "s/^      # - $TASK_NAME/      - $TASK_NAME/" configs/assignments/default.yaml
+# BSD sed (macOS) requires backup extension for -i flag
+sed -i.bak "s/^      - alfworld-std/      # - alfworld-std/" configs/assignments/default.yaml
+sed -i.bak "s/^      - dbbench-std/      # - dbbench-std/" configs/assignments/default.yaml
+sed -i.bak "s/^      - os-std/      # - os-std/" configs/assignments/default.yaml
+sed -i.bak "s/^      - kg-std/      # - kg-std/" configs/assignments/default.yaml
+sed -i.bak "s/^      - webshop-std/      # - webshop-std/" configs/assignments/default.yaml
+sed -i.bak "s/^      # - $TASK_NAME/      - $TASK_NAME/" configs/assignments/default.yaml
+rm -f configs/assignments/default.yaml.bak
 
 echo "Step 2: Starting Docker services..."
 cd extra
@@ -80,4 +82,3 @@ echo "  cd $SCRIPT_DIR"
 echo "  source venv/bin/activate"
 echo "  python -m src.assigner"
 echo "=========================================="
-
