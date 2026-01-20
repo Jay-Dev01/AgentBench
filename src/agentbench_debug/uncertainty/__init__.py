@@ -37,10 +37,35 @@ This package implements the API-ORCHA-Bench uncertainty estimation framework:
    - Unified evaluation interface
    - Trajectory recording and analysis
    - Aggregate metrics computation
+
+7. Confidence Extraction:
+   - LLM logprobs extraction (OpenAI, Gemini)
+   - Semantic confidence analysis
+   - Self-reported confidence detection
+
+8. Agent Integration:
+   - Uncertainty-aware agent wrapper
+   - Automatic confidence tracking
+   - Real-time uncertainty propagation
 """
 
 # Core quantifier (existing)
 from .quantifier import UncertaintyQuantifier, UOut
+
+# Confidence extraction (NEW)
+from .confidence_extractor import (
+    ConfidenceExtractor,
+    ConfidenceSignals,
+    extract_confidence,
+)
+
+# Agent wrapper (NEW)
+from .agent_wrapper import (
+    UncertaintyAwareAgent,
+    UncertaintyTracker,
+    InferenceRecord,
+    wrap_agent,
+)
 
 # Hierarchical uncertainty propagation
 from .hierarchical import (
@@ -110,11 +135,31 @@ from .orchestration_harness import (
     evaluate_trajectory,
 )
 
+# Pipeline integration (NEW)
+from .pipeline_integration import (
+    UncertaintyReport,
+    UncertaintyCallback,
+    create_uncertainty_agent,
+    analyze_saved_runs,
+    quick_analyze,
+)
+
 
 __all__ = [
     # Core
     "UncertaintyQuantifier",
     "UOut",
+    
+    # Confidence Extraction (NEW)
+    "ConfidenceExtractor",
+    "ConfidenceSignals",
+    "extract_confidence",
+    
+    # Agent Wrapper (NEW)
+    "UncertaintyAwareAgent",
+    "UncertaintyTracker",
+    "InferenceRecord",
+    "wrap_agent",
     
     # Hierarchical
     "HierarchicalUncertaintyPropagator",
@@ -171,5 +216,12 @@ __all__ = [
     "WorkflowRun",
     "StepRecord",
     "evaluate_trajectory",
+    
+    # Pipeline Integration (NEW)
+    "UncertaintyReport",
+    "UncertaintyCallback",
+    "create_uncertainty_agent",
+    "analyze_saved_runs",
+    "quick_analyze",
 ]
 

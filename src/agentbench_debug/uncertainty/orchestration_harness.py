@@ -38,6 +38,7 @@ from .mitigation import (
     DecisionLayer,
     MitigationStrategy,
 )
+from .confidence_extractor import ConfidenceExtractor, extract_confidence
 
 
 @dataclass
@@ -158,6 +159,9 @@ class OrchestrationHarness:
         )
         self.mitigation = DecisionLayer()
         
+        # Confidence extractor for real API responses
+        self.confidence_extractor = ConfidenceExtractor()
+        
         # Run state
         self._current_run: Optional[WorkflowRun] = None
         self._step_records: List[StepRecord] = []
@@ -243,7 +247,9 @@ class OrchestrationHarness:
         tools_available: List[str],
         response: Any,
         tool_calls: Optional[List[Dict[str, Any]]] = None,
-        confidence: float = 1.0,
+        confidence: Optional[float] = None,
+        raw_api_response: Optional[Dict[str, Any]] = None,
+        api_type: str = "auto",
         logprobs: Optional[List[float]] = None,
         latency_ms: float = 0.0,
         tokens_used: int = 0,
@@ -256,10 +262,12 @@ class OrchestrationHarness:
             action_type: Type of action (auth, query, etc.)
             input_messages: Input messages to agent
             tools_available: Tools available at this step
-            response: Agent response
+            response: Agent response (content string or structured response)
             tool_calls: Tool calls made
-            confidence: Confidence score (0-1)
-            logprobs: Optional log probabilities
+            confidence: Explicit confidence score (0-1). If None, extracted from raw_api_response.
+            raw_api_response: Raw LLM API response for automatic confidence extraction
+            api_type: API type for extraction ("openai", "gemini", "anthropic", "auto")
+            logprobs: Optional log probabilities (used if raw_api_response not provided)
             latency_ms: Step latency
             tokens_used: Tokens consumed
         
@@ -270,6 +278,25 @@ class OrchestrationHarness:
             raise RuntimeError("No active run. Call start_run() first.")
         
         step_idx = len(self._step_records)
+        
+        # Extract confidence from raw API response if not explicitly provided
+        if confidence is None:
+            if raw_api_response is not None:
+                # Use the confidence extractor for real API responses
+                signals = self.confidence_extractor.extract(
+                    raw_api_response,
+                    api_type=api_type,
+                    content=response if isinstance(response, str) else None,
+                )
+                confidence = signals.confidence
+            elif logprobs is not None:
+                # Compute from logprobs
+                import math
+                mean_logprob = sum(logprobs) / len(logprobs) if logprobs else 0.0
+                confidence = min(1.0, math.exp(mean_logprob))
+            else:
+                # Default confidence
+                confidence = 0.7
         
         # Compute action uncertainty
         action_unc = self.uncertainty.compute_action_uncertainty(
