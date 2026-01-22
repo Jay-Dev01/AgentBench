@@ -6,6 +6,9 @@ parameters:
     api-key: ${AZURE_OPENAI_API_KEY}
   body:
     temperature: 0
+    # Enable logprobs for uncertainty estimation
+    logprobs: true
+    top_logprobs: 5
   prompter:
     name: openai_passthrough
   return_format: openai_auto

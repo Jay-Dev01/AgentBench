@@ -1,6 +1,7 @@
 import contextlib
 import time
 import warnings
+from typing import Optional
 
 import requests
 from urllib3.exceptions import InsecureRequestWarning
@@ -197,11 +198,17 @@ class HTTPAgent(AgentClient):
         self.body = body or {}
         self.return_format = return_format
         self.prompter = Prompter.get_prompter(prompter)
+        # Store last raw response for uncertainty estimation (includes logprobs)
+        self._last_raw_response = None
         if not self.url:
             raise Exception("Please set 'url' parameter")
 
     def _handle_history(self, history: List[dict]) -> Dict[str, Any]:
         return self.prompter(history)
+    
+    def get_last_raw_response(self) -> Optional[Dict[str, Any]]:
+        """Get the last raw API response (includes logprobs if enabled)."""
+        return self._last_raw_response
 
     def inference(self, history) -> str:
         for _ in range(3):
@@ -228,6 +235,9 @@ class HTTPAgent(AgentClient):
                 pass
             else:
                 resp = resp.json()
+                # Store raw response for uncertainty estimation (includes logprobs)
+                self._last_raw_response = resp
+                
                 # Handle OpenAI chat completion format
                 if self.return_format == "openai_chat":
                     if "choices" in resp and resp["choices"]:
@@ -245,6 +255,21 @@ class HTTPAgent(AgentClient):
                         # Otherwise return content
                         return message.get("content", "")
                     return ""
+                
+                # Handle openai_auto format (function calling with tool_calls)
+                if self.return_format == "openai_auto":
+                    if "choices" in resp and resp["choices"]:
+                        message = resp["choices"][0].get("message", {})
+                        # Check for tool calls first
+                        if "tool_calls" in message and message["tool_calls"]:
+                            tool_call = message["tool_calls"][0]
+                            # Return the function call info as a string marker
+                            # The actual handling is done by the task client
+                            return "openai_auto"
+                        # Otherwise return content
+                        return message.get("content", "") or "openai_auto"
+                    return "openai_auto"
+                
                 return self.return_format.format(response=resp)
             time.sleep(_ + 2)
         raise Exception("Failed.")

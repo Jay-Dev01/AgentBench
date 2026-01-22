@@ -64,6 +64,7 @@ def std_out_err_redirect_tqdm():
 class UncertaintyAwareAgentWrapper:
     """
     Wrapper that intercepts agent inference calls to track uncertainty.
+    Now supports extracting confidence from OpenAI logprobs.
     """
     
     def __init__(self, agent: AgentClient, task_name: str):
@@ -73,40 +74,94 @@ class UncertaintyAwareAgentWrapper:
         self._extractor = ConfidenceExtractor()
         self._step_count = 0
         self._last_raw_response = None
+        self._confidence_history: List[float] = []  # Store our extracted confidences
         
     def inference(self, history) -> str:
-        """Intercept inference to extract confidence."""
+        """Intercept inference to extract confidence from logprobs."""
         self._step_count += 1
         
         # Call original agent
         response = self._agent.inference(history)
         
+        # Get raw API response (includes logprobs if enabled)
+        raw_response = None
+        if hasattr(self._agent, 'get_last_raw_response'):
+            raw_response = self._agent.get_last_raw_response()
+        elif hasattr(self._agent, '_last_raw_response'):
+            raw_response = self._agent._last_raw_response
+        
+        # Store for debugging
+        self._last_raw_response = raw_response
+        
         # Extract confidence from the response
-        confidence = self._extract_confidence(response)
+        confidence = self._extract_confidence(response, raw_response)
         
         # Infer action type from response content
         action_type = self._infer_action_type(response)
         
-        # Record in tracker
-        self._tracker.record_response(
-            content=response,
-            action_name=f"step_{self._step_count}",
-            action_type=action_type,
-        )
+        # Store confidence directly (bypass tracker's re-extraction)
+        self._confidence_history.append(confidence)
         
         return response
     
-    def _extract_confidence(self, response: str) -> float:
-        """Extract confidence from response text."""
-        # Try to get raw response if agent stored it
-        raw_response = getattr(self._agent, '_last_raw_response', None)
+    def _extract_confidence(self, response: str, raw_response: dict = None) -> float:
+        """
+        Extract confidence from API response.
         
-        if raw_response:
-            signals = self._extractor.extract(raw_response, api_type="auto", content=response)
-        else:
-            signals = self._extractor.extract(response, api_type="generic")
+        Note: OpenAI doesn't return logprobs when using function calling (tools),
+        so we use alternative confidence estimation methods:
+        1. Check finish_reason (stop = higher confidence)
+        2. Analyze any content/reasoning if present
+        3. Use response structure signals
+        """
+        confidence = 0.7  # Default baseline
+        source = "default"
         
-        return signals.confidence
+        if raw_response and isinstance(raw_response, dict):
+            choices = raw_response.get("choices", [])
+            if choices:
+                choice = choices[0]
+                
+                # Check finish_reason - "stop" indicates confident completion
+                finish_reason = choice.get("finish_reason", "")
+                if finish_reason == "stop":
+                    confidence = 0.85  # Higher confidence for clean stop
+                    source = "finish_reason"
+                elif finish_reason == "tool_calls":
+                    confidence = 0.80  # Function call executed
+                    source = "tool_call"
+                elif finish_reason == "length":
+                    confidence = 0.50  # Truncated - lower confidence
+                    source = "truncated"
+                elif finish_reason == "content_filter":
+                    confidence = 0.30  # Content filtered - problematic
+                    source = "filtered"
+                
+                # Check for logprobs (won't be present with function calling, but try anyway)
+                message = choice.get("message", {})
+                logprobs = choice.get("logprobs")
+                if logprobs and logprobs.get("content"):
+                    # We have logprobs! Calculate confidence from them
+                    token_logprobs = [t.get("logprob", 0) for t in logprobs["content"]]
+                    if token_logprobs:
+                        import math
+                        mean_logprob = sum(token_logprobs) / len(token_logprobs)
+                        confidence = math.exp(mean_logprob)  # Convert to probability
+                        confidence = min(0.99, max(0.01, confidence))
+                        source = f"logprobs (mean={mean_logprob:.3f})"
+                
+                # If there's content (reasoning), analyze it
+                content = message.get("content", "")
+                if content and content != "openai_auto":
+                    # Use semantic analysis on the content
+                    signals = self._extractor.extract(content, api_type="generic")
+                    if signals.source != "default":
+                        # Found uncertainty markers in reasoning
+                        confidence = signals.confidence
+                        source = f"semantic ({signals.source})"
+        
+        print(f"    [Uncertainty] Step {self._step_count}: confidence={confidence:.3f} (from {source})")
+        return confidence
     
     def _infer_action_type(self, content: str) -> str:
         """Infer action type from response content for AgentBench FC tasks."""
@@ -153,16 +208,59 @@ class UncertaintyAwareAgentWrapper:
     
     def get_uncertainty_analysis(self) -> Dict:
         """Get uncertainty analysis for this run."""
-        return self._tracker.get_analysis()
+        # Use our own confidence history instead of tracker's
+        if not self._confidence_history:
+            return {
+                "n_steps": 0,
+                "mean_confidence": 0.7,
+                "min_confidence": 0.7,
+                "trajectory_uncertainty": 0.3,
+                "final_confidence": 0.7,
+                "trend": "stable",
+                "high_uncertainty_count": 0,
+            }
+        
+        mean_conf = sum(self._confidence_history) / len(self._confidence_history)
+        min_conf = min(self._confidence_history)
+        final_conf = self._confidence_history[-1]
+        
+        # Determine trend
+        if len(self._confidence_history) >= 2:
+            first_half = self._confidence_history[:len(self._confidence_history)//2]
+            second_half = self._confidence_history[len(self._confidence_history)//2:]
+            first_mean = sum(first_half) / len(first_half)
+            second_mean = sum(second_half) / len(second_half)
+            if second_mean > first_mean + 0.05:
+                trend = "increasing"
+            elif second_mean < first_mean - 0.05:
+                trend = "decreasing"
+            else:
+                trend = "stable"
+        else:
+            trend = "stable"
+        
+        # Count high uncertainty steps (confidence < 0.5)
+        high_uncertainty_count = sum(1 for c in self._confidence_history if c < 0.5)
+        
+        return {
+            "n_steps": len(self._confidence_history),
+            "mean_confidence": mean_conf,
+            "min_confidence": min_conf,
+            "trajectory_uncertainty": 1.0 - mean_conf,
+            "final_confidence": final_conf,
+            "trend": trend,
+            "high_uncertainty_count": high_uncertainty_count,
+        }
     
     def get_confidence_history(self) -> List[float]:
         """Get confidence values for all steps."""
-        return self._tracker.get_confidence_history()
+        return self._confidence_history
     
     def reset(self):
         """Reset for a new run."""
         self._tracker.reset()
         self._step_count = 0
+        self._confidence_history = []
     
     def __getattr__(self, name):
         """Proxy other attributes to wrapped agent."""
