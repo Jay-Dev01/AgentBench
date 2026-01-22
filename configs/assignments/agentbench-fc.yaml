@@ -1,0 +1,53 @@
+# AgentBench FC (Function Calling) - Original Benchmark Configuration
+# This configuration focuses on the 5 core containerized tasks from AgentBench FC.
+#
+# Tasks:
+#   - alfworld-std (AF): Household tasks in simulated environment
+#   - dbbench-std (DB): Database query tasks
+#   - os-std (OS): OS interaction tasks in Docker containers
+#   - kg-std (KG): Knowledge graph question answering (requires Freebase)
+#   - webshop-std (WS): Web shopping navigation (requires ~16GB RAM)
+
+import: definition.yaml
+
+concurrency:
+  task:
+    # AgentBench FC Core Tasks
+    alfworld-std: 1
+    dbbench-std: 1
+    os-std: 1
+    kg-std: 1
+    webshop-std: 1
+  agent:
+    gpt-4o-mini: 1
+
+assignments:
+  - agent:
+      - gpt-4o-mini
+    task:
+      # ===== AgentBench FC Core Tasks =====
+      # Uncomment the task(s) you want to run
+      
+      # ALFWorld - Household tasks
+      # 109 samples, requires: alfworld-std Docker service
+      - alfworld-std
+      
+      # Database Benchmark - SQL query tasks
+      # Requires: dbbench-std Docker service + mysql:8 image
+      # - dbbench-std
+      
+      # OS Interaction - Linux command-line tasks
+      # Requires: os_interaction-std Docker service + local-os/* images
+      # - os-std
+      
+      # Knowledge Graph - Freebase question answering
+      # Requires: knowledgegraph-std + freebase Docker services
+      # Requires: Freebase data at ./extra/virtuoso_db/virtuoso.db
+      # - kg-std
+      
+      # WebShop - Web shopping navigation
+      # Requires: webshop-std Docker service, ~16GB RAM, ~3min startup
+      # - webshop-std
+
+output: "outputs/{TIMESTAMP}"
+

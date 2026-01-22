@@ -1,14 +1,21 @@
 """
-AgentBench Pipeline Integration for Uncertainty Estimation.
+AgentBench FC Pipeline Integration for Uncertainty Estimation.
 
 This module provides hooks to integrate uncertainty estimation into the
-existing AgentBench evaluation pipeline without modifying core files.
+AgentBench FC (Function Calling) evaluation pipeline.
+
+Supported Tasks:
+    - alfworld (AF): Household tasks in simulated environment
+    - dbbench (DB): Database SQL query tasks
+    - os (OS): OS interaction tasks
+    - kg (KG): Knowledge graph question answering
+    - webshop (WS): Web shopping navigation
 
 Usage:
     # Option 1: Wrap agent before running
     from agentbench_debug.uncertainty import create_uncertainty_agent
     
-    wrapped_agent = create_uncertainty_agent(agent, task_type="toolemu")
+    wrapped_agent = create_uncertainty_agent(agent, task_type="alfworld")
     result = task.run(wrapped_agent)
     uncertainty_report = wrapped_agent.get_uncertainty_report()
     
@@ -419,32 +426,77 @@ def _process_run(
 
 
 def _detect_task_type(run: Dict[str, Any], path: Path) -> str:
-    """Auto-detect task type."""
+    """Auto-detect task type from path and content."""
     path_str = str(path).lower()
     
-    if "toolemu" in path_str:
-        return "toolemu"
-    if "dbbench" in path_str:
-        return "dbbench"
-    if "os" in path_str:
-        return "os"
+    # AgentBench FC Core Tasks (priority order)
     if "alfworld" in path_str:
         return "alfworld"
-    
-    # Check content
-    run_str = str(run).lower()
-    if "toolkit" in run_str or "risky" in run_str:
-        return "toolemu"
-    if "sql" in run_str or "query" in run_str:
+    if "dbbench" in path_str:
         return "dbbench"
+    if "os_interaction" in path_str or "os-std" in path_str:
+        return "os"
+    if "knowledgegraph" in path_str or "kg-std" in path_str:
+        return "kg"
+    if "webshop" in path_str:
+        return "webshop"
+    
+    # Check content for AgentBench FC task signatures
+    run_str = str(run).lower()
+    
+    # ALFWorld - household tasks
+    if "take_action" in run_str or "alfworld" in run_str:
+        return "alfworld"
+    
+    # DBBench - SQL queries
+    if "execute_sql" in run_str or "commit_final_answer" in run_str:
+        return "dbbench"
+    
+    # OS Interaction - bash commands
+    if "bash_action" in run_str or "finish_action" in run_str:
+        return "os"
+    
+    # Knowledge Graph - SPARQL queries
+    if "sparql" in run_str or "freebase" in run_str:
+        return "kg"
+    
+    # WebShop - e-commerce navigation
+    if "search_action" in run_str or "click_action" in run_str:
+        return "webshop"
     
     return "unknown"
 
 
 def _infer_action_type(action: str) -> str:
-    """Infer action type from name."""
+    """Infer action type from name for AgentBench FC tasks."""
     action_lower = action.lower()
     
+    # AgentBench FC specific actions
+    # ALFWorld
+    if "take_action" in action_lower:
+        return "environment_action"
+    
+    # DBBench
+    if "execute_sql" in action_lower:
+        return "query"
+    if "commit_final_answer" in action_lower:
+        return "submit"
+    
+    # OS Interaction
+    if "bash_action" in action_lower:
+        return "shell_command"
+    if "finish_action" in action_lower:
+        return "complete"
+    if "answer_action" in action_lower:
+        return "submit"
+    
+    # WebShop
+    if "search_action" in action_lower:
+        return "search"
+    if "click_action" in action_lower:
+        return "navigation"
+    
+    # Generic patterns
     if any(kw in action_lower for kw in ["auth", "login", "token"]):
         return "auth"
     if any(kw in action_lower for kw in ["delete", "remove"]):
@@ -455,6 +507,8 @@ def _infer_action_type(action: str) -> str:
         return "query"
     if any(kw in action_lower for kw in ["validate", "check"]):
         return "validate"
+    if any(kw in action_lower for kw in ["submit", "finish", "complete", "answer"]):
+        return "submit"
     
     return "default"
 

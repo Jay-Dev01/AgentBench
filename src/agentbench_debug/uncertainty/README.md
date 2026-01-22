@@ -1,22 +1,43 @@
-# Uncertainty Estimation Framework
+# Uncertainty Estimation Framework for AgentBench FC
 
-A complete framework for measuring and analyzing agent uncertainty in LLM-based API orchestration tasks.
+A complete framework for measuring and analyzing agent uncertainty in LLM-based agent tasks.
 
 ## Overview
 
-This framework provides comprehensive uncertainty quantification for AgentBench evaluations, implementing:
+This framework provides comprehensive uncertainty quantification for AgentBench FC (Function Calling) evaluations, implementing:
 
 - **Confidence Extraction** from LLM API responses (OpenAI, Gemini, Anthropic)
 - **Hierarchical Uncertainty Propagation** (Token → Action → Observation → Trajectory)
 - **Calibration Metrics** (ECE, Brier Score, Reliability Diagrams)
 - **Agent Wrappers** for automatic uncertainty tracking
-- **Pipeline Integration** for seamless use with AgentBench tasks
+- **Pipeline Integration** for seamless use with AgentBench FC tasks
+
+## Supported AgentBench FC Tasks
+
+| Task | Code | Description | Function Calls |
+|------|------|-------------|----------------|
+| **ALFWorld** | `alfworld-std` | Household tasks | `take_action` |
+| **DBBench** | `dbbench-std` | Database SQL queries | `execute_sql`, `commit_final_answer` |
+| **OS Interaction** | `os-std` | Linux shell tasks | `bash_action`, `finish_action`, `answer_action` |
+| **Knowledge Graph** | `kg-std` | Freebase QA | SPARQL queries |
+| **WebShop** | `webshop-std` | E-commerce navigation | `search_action`, `click_action` |
 
 ## Quick Start
 
-### Option 1: Wrap an Agent (Recommended)
+### Option 1: Run with Uncertainty Tracking (Recommended)
 
-The easiest way to add uncertainty tracking to any agent:
+Use the uncertainty-aware assigner to run benchmarks with automatic confidence tracking:
+
+```bash
+# Run ALFWorld with uncertainty tracking
+python -m src.uncertainty_assigner --config configs/assignments/agentbench-fc.yaml
+
+# Results saved to outputs/{TIMESTAMP}/
+# - runs.jsonl: Standard results + uncertainty data
+# - uncertainty_analysis.json: Aggregate uncertainty metrics
+```
+
+### Option 2: Wrap an Agent Programmatically
 
 ```python
 from agentbench_debug.uncertainty import create_uncertainty_agent
@@ -24,8 +45,8 @@ from agentbench_debug.uncertainty import create_uncertainty_agent
 # Wrap your existing agent
 wrapped_agent = create_uncertainty_agent(
     agent,
-    task_type="toolemu",  # or "dbbench", "os", etc.
-    api_type="openai",    # or "gemini", "anthropic", "auto"
+    task_type="alfworld",  # or "dbbench", "os", "kg", "webshop"
+    api_type="openai",     # or "gemini", "anthropic", "auto"
 )
 
 # Use the agent normally
@@ -36,7 +57,7 @@ report = wrapped_agent.get_uncertainty_report("my_task", success=True)
 report.print_summary()
 ```
 
-### Option 2: Manual Tracking with UncertaintyTracker
+### Option 3: Manual Tracking with UncertaintyTracker
 
 For custom evaluation loops:
 
@@ -52,9 +73,9 @@ for step in workflow_steps:
     # Record the response and get confidence
     confidence = tracker.record_response(
         content=response,
-        action_name="search_files",
-        action_type="query",
-        raw_response=api_response,  # Optional: raw API response for better extraction
+        action_name="take_action",
+        action_type="environment_action",
+        raw_response=api_response,  # Optional: raw API response
     )
     
     print(f"Step confidence: {confidence:.3f}")
@@ -65,7 +86,7 @@ print(f"Mean confidence: {analysis['mean_confidence']:.3f}")
 print(f"Trend: {analysis['trend']}")
 ```
 
-### Option 3: Callback-Based Integration
+### Option 4: Callback-Based Integration
 
 For event-driven pipelines:
 
@@ -75,15 +96,15 @@ from agentbench_debug.uncertainty import UncertaintyCallback
 callback = UncertaintyCallback()
 
 # Start task
-callback.on_task_start("task_name", "toolemu")
+callback.on_task_start("alfworld_task_001", "alfworld")
 
 # After each step
 for step in steps:
     response = agent.inference(messages)
     confidence = callback.on_step(
         content=response,
-        action_name="tool_name",
-        action_type="query",
+        action_name="take_action",
+        action_type="environment_action",
     )
 
 # End task and get report
@@ -91,7 +112,7 @@ report = callback.on_task_end(success=True)
 report.print_summary()
 ```
 
-### Option 4: Analyze Saved Runs
+### Option 5: Analyze Saved Runs
 
 For post-hoc analysis of existing results:
 
@@ -100,12 +121,22 @@ from agentbench_debug.uncertainty import analyze_saved_runs
 
 # Analyze a runs.jsonl file
 results = analyze_saved_runs(
-    "outputs/toolemu_gemini/runs.jsonl",
-    task_type="toolemu",
+    "outputs/gpt-4o-mini/alfworld-std/runs.jsonl",
+    task_type="alfworld",
 )
 
 print(f"Success rate: {results['metrics']['success_rate']:.1%}")
 print(f"Mean ECE: {results['metrics']['calibration']['mean_ece']:.4f}")
+```
+
+Or use the CLI script:
+
+```bash
+# Analyze all runs in outputs/
+python scripts/analyze_real_runs.py --all
+
+# Analyze specific task
+python scripts/analyze_real_runs.py --output outputs/2025-12-08-16-44-37 --task alfworld-std
 ```
 
 ## Full Orchestration Harness
@@ -133,7 +164,7 @@ harness = OrchestrationHarness(config)
 
 # Process runs
 for task in tasks:
-    harness.start_run(task.name, "toolemu")
+    harness.start_run(task.name, "alfworld")
     
     for step in task.steps:
         harness.record_step(
@@ -173,11 +204,11 @@ extractor = ConfidenceExtractor()
 # OpenAI response with logprobs
 response = {
     "choices": [{
-        "message": {"content": "The answer is 42."},
+        "message": {"content": "I'll take the apple."},
         "logprobs": {
             "content": [
-                {"token": "The", "logprob": -0.05},
-                {"token": " answer", "logprob": -0.1},
+                {"token": "I'll", "logprob": -0.05},
+                {"token": " take", "logprob": -0.1},
             ]
         }
     }]
@@ -193,22 +224,37 @@ print(f"Mean logprob: {signals.mean_logprob:.3f}")
 
 ```python
 # Automatically detects uncertainty phrases
-text = "I'm not sure, but I think the answer might be around 42."
+text = "I'm not sure, but I think I should go to the kitchen."
 signals = extractor.extract(text, api_type="generic")
 
 print(f"Confidence: {signals.confidence:.3f}")  # Lower due to uncertainty phrases
 print(f"Uncertainty phrases: {signals.uncertainty_phrases}")
-# ['i'm not sure', 'i think', 'might be']
+# ['i'm not sure', 'i think']
 ```
 
 ### Self-Reported Confidence
 
 ```python
-text = "I am 85% confident that this is correct."
+text = "I am 85% confident this is the right path."
 signals = extractor.extract(text)
 
 print(f"Self-reported: {signals.self_reported_confidence}")  # 0.85
 ```
+
+## Task-Specific Action Types
+
+The framework automatically infers action types for AgentBench FC tasks:
+
+| Task | Action | Action Type |
+|------|--------|-------------|
+| ALFWorld | `take_action` | `environment_action` |
+| DBBench | `execute_sql` | `query` |
+| DBBench | `commit_final_answer` | `submit` |
+| OS | `bash_action` | `shell_command` |
+| OS | `finish_action` | `complete` |
+| OS | `answer_action` | `submit` |
+| WebShop | `search_action` | `search` |
+| WebShop | `click_action` | `navigation` |
 
 ## Metrics Explained
 
@@ -240,20 +286,13 @@ print(f"Self-reported: {signals.self_reported_confidence}")  # 0.85
 ## CLI Usage
 
 ```bash
+# Run with uncertainty tracking
+python -m src.uncertainty_assigner --config configs/assignments/agentbench-fc.yaml
+
 # Analyze existing runs
-python scripts/run_uncertainty_evaluation.py \
-    --input outputs/toolemu_gemini/runs.jsonl \
-    --task-type toolemu \
-    --output outputs/uncertainty_analysis \
-    --verbose
+python scripts/analyze_real_runs.py --all
 
-# With custom threshold
-python scripts/run_uncertainty_evaluation.py \
-    --input outputs/runs.jsonl \
-    --uncertainty-threshold 0.4 \
-    --enable-mitigation
-
-# Run tests
+# Run the test suite
 python scripts/test_uncertainty_framework.py
 ```
 
@@ -279,11 +318,11 @@ src/agentbench_debug/uncertainty/
 
 ```
 ============================================================
-Uncertainty Report: toolemu_task_001
+Uncertainty Report: alfworld_task_001
 ============================================================
-Task Type: toolemu
+Task Type: alfworld
 Success: Yes
-Steps: 5
+Steps: 12
 
 CONFIDENCE METRICS:
   Mean Confidence: 0.823
@@ -303,18 +342,56 @@ RECOMMENDATIONS:
 ============================================================
 ```
 
+## Running Benchmarks
+
+### Prerequisites
+
+1. Start Docker services:
+```bash
+cd extra
+docker compose up -d controller redis alfworld-std
+```
+
+2. Set your API key:
+```bash
+export OPENAI_API_KEY="your-key-here"
+# or for Azure:
+export AZURE_OPENAI_API_KEY="your-azure-key-here"
+```
+
+### Run with Uncertainty Tracking
+
+```bash
+# Run ALFWorld (default)
+python -m src.uncertainty_assigner
+
+# Run with specific config
+python -m src.uncertainty_assigner --config configs/assignments/agentbench-fc.yaml
+```
+
+### Analyze Results
+
+```bash
+# View uncertainty analysis
+cat outputs/{TIMESTAMP}/uncertainty_analysis.json | python -m json.tool
+
+# Or use the analysis script
+python scripts/analyze_real_runs.py --output outputs/{TIMESTAMP}
+```
+
 ## Requirements
 
-- Python 3.8+
+- Python 3.9+
 - numpy
+- Docker (for task environments)
 
 ## References
 
+- AgentBench FC (Function Calling) - THUDM/AgentBench
 - SAUP (Situational Awareness Uncertainty Propagation)
 - Expected Calibration Error (Guo et al., 2017)
 - Circuit Breaker Pattern (Microsoft/Netflix)
 
 ---
 
-*Part of the API-ORCHA-Bench uncertainty estimation framework for evaluating LLM-based agents on API orchestration reliability.*
-
+*Part of the AgentBench FC uncertainty estimation framework for evaluating LLM-based agents on function-calling tasks.*

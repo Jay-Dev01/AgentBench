@@ -1,74 +1,46 @@
+# AgentBench FC Default Configuration
+# Focus: Original AgentBench Function-Calling Benchmark Tasks
+#
+# Available Tasks (5 core FC tasks):
+#   - alfworld-std (AF): Household tasks - 109 samples
+#   - dbbench-std (DB): Database SQL tasks
+#   - os-std (OS): OS interaction tasks
+#   - kg-std (KG): Knowledge graph QA (requires Freebase)
+#   - webshop-std (WS): Web shopping (~16GB RAM)
+
 import: definition.yaml
 
 concurrency:
   task:
-    # ALFWorld - Household tasks
+    # AgentBench FC Core Tasks
     alfworld-std: 1
-    # Database Benchmark
     dbbench-std: 1
-    # OS Interaction
     os-std: 1
-    # Knowledge Graph
     kg-std: 1
-    # WebShop
     webshop-std: 1
-    # ToolEmu variants
-    toolemu-std: 1
-    toolemu-adv: 1
-    toolemu-stress: 1
-    toolemu-safety: 1
-    # Mind2Web - Web browsing (actual names: Mind2Web-std, Mind2Web-dev)
-    Mind2Web-std: 1
-    Mind2Web-dev: 1
-    # Card Game (Aquawar)
-    cg-std: 1
-    cg-dev: 1
-    # Lateral Thinking Puzzles
-    ltp-std: 1
-    ltp-dev: 1
-    # Avalon
-    avalon-dev-naive: 1
-    avalon-dev-single: 1
   agent:
     gpt-4o-mini: 1
 
-assignments: # List[Assignment] | Assignment
+assignments:
   - agent:
       - gpt-4o-mini
     task:
-      # ===== UNCOMMENT THE TASK(S) YOU WANT TO RUN =====
-      # 
-      # --- Original AgentBench Tasks ---
-      - alfworld-std        # House-holding tasks (ALFWorld)
-      # - dbbench-std       # Database tasks
-      # - os-std            # OS interaction tasks
-      # - kg-std            # Knowledge graph tasks (requires freebase)
-      # - webshop-std       # Web shopping tasks (requires ~16GB RAM)
+      # ===== AgentBench FC Core Tasks =====
+      # These are the 5 fully-containerized Function Calling tasks
       #
-      # --- ToolEmu Variants ---
-      # - toolemu-std       # ToolEmu standard mode
-      # - toolemu-adv       # ToolEmu adversarial mode (30% failure injection)
-      # - toolemu-stress    # ToolEmu stress mode (50% failure injection)
-      # - toolemu-safety    # ToolEmu safety-focused evaluation
-      #
-      # --- Mind2Web - Web Browsing ---
-      # NOTE: Pre-built images don't work with FC version (missing agentrl module)
-      # - Mind2Web-std      # Mind2Web standard (BROKEN - old image format)
-      # - Mind2Web-dev      # Mind2Web dev set (BROKEN - old image format)
-      #
-      # --- Card Game (Aquawar) ---
-      # NOTE: Pre-built images don't work with FC version (missing agentrl module)
-      # - cg-std            # Card Game standard (BROKEN - old image format)
-      # - cg-dev            # Card Game dev set (BROKEN - old image format)
-      #
-      # --- Lateral Thinking Puzzles ---
-      # NOTE: Pre-built images don't work with FC version (missing agentrl module)
-      # - ltp-std           # LTP standard (BROKEN - old image format)
-      # - ltp-dev           # LTP dev set (BROKEN - old imag   format)
-      #
-      # --- Avalon (Multi-agent game) ---
-      # NOTE: Pre-built images don't work with FC version (missing agentrl module)
-      # - avalon-dev-naive  # Avalon naive mode (BROKEN - old image format)
-      # - avalon-dev-single # Avalon single mode (BROKEN - old image format)
+      # --- ALFWorld (Household Tasks) ---
+      - alfworld-std        # 109 samples, ~10s startup
+      
+      # --- Database Benchmark (SQL) ---
+      # - dbbench-std       # Requires mysql:8 image
+      
+      # --- OS Interaction (Linux Shell) ---
+      # - os-std            # Requires local-os/* images
+      
+      # --- Knowledge Graph (Freebase QA) ---
+      # - kg-std            # Requires freebase data setup
+      
+      # --- WebShop (E-commerce Navigation) ---
+      # - webshop-std       # ~16GB RAM, ~3min startup
 
 output: "outputs/{TIMESTAMP}"
