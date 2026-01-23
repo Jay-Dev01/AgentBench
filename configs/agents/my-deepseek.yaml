@@ -1,0 +1,7 @@
+module: src.client.agents.my_openai_chat.MyOpenAIChat
+parameters:
+  name: "my-deepseek"
+  model: "deepseek/deepseek-chat"
+  api_base: "https://openrouter.ai/api/v1"
+  api_key: ${OPENROUTER_API_KEY}
+  temperature: 0

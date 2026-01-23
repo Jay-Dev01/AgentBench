@@ -30,3 +30,13 @@ my-gemini:
     import: "./my-gemini.yaml"
     parameters:
         name: "my-gemini"
+
+my-deepseek:
+    import: "./my-deepseek.yaml"
+    parameters:
+        name: "my-deepseek"
+
+my-qwen:
+    import: "./my-qwen.yaml"
+    parameters:
+        name: "my-qwen"
