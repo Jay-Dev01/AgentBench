@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    swebench-rebench-100: 1
+  agent:
+    deepseek-v3.2: 1
+
+assignments:
+  - agent:
+      - deepseek-v3.2
+    task:
+      - swebench-rebench-100
+
+output: "outputs/{TIMESTAMP}"

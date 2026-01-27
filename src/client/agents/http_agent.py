@@ -1,6 +1,7 @@
 import contextlib
 import time
 import warnings
+from typing import Any, Dict, Optional
 
 import requests
 from urllib3.exceptions import InsecureRequestWarning
@@ -197,14 +198,22 @@ class HTTPAgent(AgentClient):
         self.body = body or {}
         self.return_format = return_format
         self.prompter = Prompter.get_prompter(prompter)
+        self._last_raw_response: Optional[Dict[str, Any]] = None
         if not self.url:
             raise Exception("Please set 'url' parameter")
+    
+    def get_last_raw_response(self) -> Optional[Dict[str, Any]]:
+        """Get the last raw API response for confidence extraction."""
+        return self._last_raw_response
 
     def _handle_history(self, history: List[dict]) -> Dict[str, Any]:
         return self.prompter(history)
 
     def inference(self, history) -> str:
-        for _ in range(3):
+        max_retries = 5
+        base_delay = 2
+        
+        for attempt in range(max_retries):
             try:
                 body = self.body.copy()
                 body.update(self._handle_history(history))
@@ -213,6 +222,12 @@ class HTTPAgent(AgentClient):
                         self.url, json=body, headers=self.headers, proxies=self.proxies, timeout=120
                     )
                 # print(resp.status_code, resp.text)
+                if resp.status_code == 429:
+                    # Rate limited - use exponential backoff
+                    delay = base_delay * (2 ** attempt) + (attempt * 5)  # 2, 9, 18, 35, 60 seconds
+                    print(f"Warning: Rate limited (429). Waiting {delay}s before retry {attempt + 1}/{max_retries}...")
+                    time.sleep(delay)
+                    continue
                 if resp.status_code != 200:
                     # print(resp.text)
                     if check_context_limit(resp.text):
@@ -225,26 +240,29 @@ class HTTPAgent(AgentClient):
                 raise e
             except Exception as e:
                 print("Warning: ", e)
-                pass
-            else:
-                resp = resp.json()
-                # Handle OpenAI chat completion format
-                if self.return_format == "openai_chat":
-                    if "choices" in resp and resp["choices"]:
-                        message = resp["choices"][0].get("message", {})
-                        # Check for tool calls first
-                        if "tool_calls" in message and message["tool_calls"]:
-                            tool_call = message["tool_calls"][0]
-                            # Return the action from the tool call arguments
-                            import json
-                            try:
-                                args = json.loads(tool_call["function"]["arguments"])
-                                return args.get("action", "")
-                            except:
-                                return tool_call["function"]["arguments"]
-                        # Otherwise return content
-                        return message.get("content", "")
-                    return ""
-                return self.return_format.format(response=resp)
-            time.sleep(_ + 2)
-        raise Exception("Failed.")
+                time.sleep(base_delay * (attempt + 1))
+                continue
+            
+            resp = resp.json()
+            # Store raw response for confidence extraction
+            self._last_raw_response = resp
+            # Handle OpenAI chat completion format
+            if self.return_format == "openai_chat":
+                if "choices" in resp and resp["choices"]:
+                    message = resp["choices"][0].get("message", {})
+                    # Check for tool calls first
+                    if "tool_calls" in message and message["tool_calls"]:
+                        tool_call = message["tool_calls"][0]
+                        # Return the action from the tool call arguments
+                        import json
+                        try:
+                            args = json.loads(tool_call["function"]["arguments"])
+                            return args.get("action", "")
+                        except:
+                            return tool_call["function"]["arguments"]
+                    # Otherwise return content
+                    return message.get("content", "")
+                return ""
+            return self.return_format.format(response=resp)
+        
+        raise Exception("Failed after max retries.")

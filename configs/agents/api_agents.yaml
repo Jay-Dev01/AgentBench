@@ -5,6 +5,13 @@ gpt-4o-mini:
         body:
             max_tokens: 512
 
+gpt-5-nano:
+    import: "./gpt5-chat.yaml"
+    parameters:
+        name: "gpt-5-nano"
+        body:
+            max_completion_tokens: 4096
+
 gpt-4:
     import: "./gpt4-chat.yaml"
     parameters:
@@ -40,3 +47,17 @@ my-qwen:
     import: "./my-qwen.yaml"
     parameters:
         name: "my-qwen"
+
+claude-opus-4.5:
+    import: "./claude-opus-4.5.yaml"
+    parameters:
+        name: "claude-opus-4.5"
+        body:
+            max_tokens: 4096
+
+deepseek-v3.2:
+    import: "./deepseek-v3.2.yaml"
+    parameters:
+        name: "deepseek-v3.2"
+        body:
+            max_tokens: 4096

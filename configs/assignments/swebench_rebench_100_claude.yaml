@@ -1,0 +1,15 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    swebench-rebench-100: 1
+  agent:
+    claude-opus-4.5: 1
+
+assignments:
+  - agent:
+      - claude-opus-4.5
+    task:
+      - swebench-rebench-100
+
+output: "outputs/{TIMESTAMP}"

@@ -1,0 +1,14 @@
+module: src.client.agents.HTTPAgent
+parameters:
+  url: https://openrouter.ai/api/v1/chat/completions
+  headers:
+    Content-Type: application/json
+    Authorization: Bearer ${OPENROUTER_API_KEY}
+    HTTP-Referer: https://github.com/THUDM/AgentBench
+    X-Title: AgentBench
+  body:
+    model: anthropic/claude-sonnet-4
+    temperature: 0
+  prompter:
+    name: openai_passthrough
+  return_format: openai_chat

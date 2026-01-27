@@ -1,0 +1,11 @@
+module: src.client.agents.HTTPAgent
+parameters:
+  url: https://algoverse-ab.openai.azure.com/openai/deployments/gpt-5-nano/chat/completions?api-version=2024-12-01-preview
+  headers:
+    Content-Type: application/json
+    api-key: ${AZURE_OPENAI_API_KEY}
+  body: {}
+  prompter:
+    name: openai_passthrough
+  return_format: openai_chat
+

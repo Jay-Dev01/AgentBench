@@ -1,0 +1,26 @@
+import: definition.yaml
+
+concurrency:
+  task:
+    alfworld-std: 1
+    dbbench-std: 1
+    os-std: 1
+    kg-std: 1
+    webshop-std: 1
+    swebench-rebench-100: 1
+  agent:
+    claude-opus-4.5: 1
+
+assignments:
+  - agent:
+      - claude-opus-4.5
+    task:
+      # ===== UNCOMMENT THE TASK(S) YOU WANT TO RUN =====
+      - alfworld-std      # House-holding tasks (ALFWorld)
+      # - dbbench-std     # Database tasks
+      # - os-std          # OS interaction tasks
+      # - kg-std          # Knowledge graph tasks (requires freebase)
+      # - webshop-std     # Web shopping tasks (requires ~16GB RAM)
+      # - swebench-rebench-100  # Software engineering tasks
+
+output: "outputs/{TIMESTAMP}"
