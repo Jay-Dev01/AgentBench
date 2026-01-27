@@ -47,6 +47,12 @@ class ModelResults:
     mean_conf_failure: float
     confidence_gap: float
     overconfidence_rate: float
+    
+    # Latency metrics
+    mean_total_time: float = 0.0
+    mean_step_latency: float = 0.0
+    p95_total_time: float = 0.0
+    p99_total_time: float = 0.0
 
 
 def load_uncertainty_analysis(filepath: Path) -> Optional[Dict[str, Any]]:
@@ -74,6 +80,8 @@ def extract_model_results(data: Dict[str, Any], timestamp: str) -> Optional[Mode
         calibration = data.get("calibration", {})
         outcome = data.get("outcome_analysis", {})
         
+        latency = data.get("latency", {})
+        
         return ModelResults(
             model=model,
             task=task,
@@ -92,6 +100,11 @@ def extract_model_results(data: Dict[str, Any], timestamp: str) -> Optional[Mode
             mean_conf_failure=outcome.get("mean_confidence_failure", 0.0),
             confidence_gap=outcome.get("confidence_gap", 0.0),
             overconfidence_rate=outcome.get("overconfidence_rate", 0.0),
+            # Latency metrics
+            mean_total_time=latency.get("mean_total_time", 0.0),
+            mean_step_latency=latency.get("mean_step_latency", 0.0),
+            p95_total_time=latency.get("p95_total_time", 0.0),
+            p99_total_time=latency.get("p99_total_time", 0.0),
         )
     except Exception as e:
         print(f"Warning: Could not extract results: {e}")
@@ -168,6 +181,16 @@ def print_comparison_table(results: List[ModelResults]) -> None:
     
     for r in sorted_results:
         row = f"{r.model:<20} | {r.mean_confidence:>10.4f} | {r.mean_conf_success:>10.4f} | {r.mean_conf_failure:>10.4f} | {r.confidence_gap:>8.4f} | {r.overconfidence_rate*100:>9.1f}%"
+        print(row)
+    
+    # Latency analysis table
+    print("\n### Latency Metrics\n")
+    header3 = f"{'Model':<20} | {'Mean Time':>10} | {'Step Lat':>10} | {'P95 Time':>10} | {'P99 Time':>10}"
+    print(header3)
+    print("-" * len(header3))
+    
+    for r in sorted_results:
+        row = f"{r.model:<20} | {r.mean_total_time:>9.1f}s | {r.mean_step_latency:>9.2f}s | {r.p95_total_time:>9.1f}s | {r.p99_total_time:>9.1f}s"
         print(row)
     
     # Interpretation
@@ -255,14 +278,16 @@ def export_csv(results: List[ModelResults], output_path: Path) -> None:
         writer.writerow([
             'Model', 'Pearson', 'ECE', 'AUROC', 'Brier', 'Spearman', 'MCE',
             'Pass@1', 'Total Runs', 'Mean Confidence',
-            'Conf|Success', 'Conf|Failure', 'Confidence Gap', 'Overconfidence Rate'
+            'Conf|Success', 'Conf|Failure', 'Confidence Gap', 'Overconfidence Rate',
+            'Mean Time (s)', 'Mean Step Latency (s)', 'P95 Time (s)', 'P99 Time (s)'
         ])
         
         for r in model_results.values():
             writer.writerow([
                 r.model, r.pearson_rho, r.ece, r.auroc, r.brier_score, r.spearman_rho, r.mce,
                 r.success_rate, r.total_runs, r.mean_confidence,
-                r.mean_conf_success, r.mean_conf_failure, r.confidence_gap, r.overconfidence_rate
+                r.mean_conf_success, r.mean_conf_failure, r.confidence_gap, r.overconfidence_rate,
+                r.mean_total_time, r.mean_step_latency, r.p95_total_time, r.p99_total_time
             ])
     
     print(f"\nCSV exported to: {output_path}")

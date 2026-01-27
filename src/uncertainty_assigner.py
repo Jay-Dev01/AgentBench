@@ -65,12 +65,13 @@ def std_out_err_redirect_tqdm():
 
 class UncertaintyAwareAgentWrapper:
     """
-    Wrapper that intercepts agent inference to track uncertainty.
+    Wrapper that intercepts agent inference to track uncertainty and latency.
     
     Enhanced with:
     - Semantic analysis of tool arguments
     - Action complexity scoring  
     - Hedging/confidence phrase detection
+    - Per-step and trajectory-level latency tracking
     """
     
     def __init__(
@@ -90,6 +91,8 @@ class UncertaintyAwareAgentWrapper:
         self._tracker = UncertaintyTracker(task_type=task_type)
         self._step_count = 0
         self._confidence_history: List[Tuple[float, str]] = []  # (confidence, source)
+        self._latency_history: List[float] = []  # Per-step latencies in seconds
+        self._trajectory_start_time: Optional[float] = None  # Wall-clock start
         self._default_confidence = default_confidence
     
     @property
@@ -97,9 +100,20 @@ class UncertaintyAwareAgentWrapper:
         return getattr(self._agent, "name", "unknown")
     
     def inference(self, history: Any) -> str:
-        """Perform inference with enhanced uncertainty tracking."""
+        """Perform inference with enhanced uncertainty and latency tracking."""
+        # Start trajectory timer on first step
+        if self._trajectory_start_time is None:
+            self._trajectory_start_time = time.time()
+        
+        # Measure per-step latency
+        step_start = time.time()
+        
         # Call underlying agent
         output = self._agent.inference(history)
+        
+        # Record step latency
+        step_latency = time.time() - step_start
+        self._latency_history.append(step_latency)
         
         # Try to get raw response
         raw_response = None
@@ -115,8 +129,8 @@ class UncertaintyAwareAgentWrapper:
         self._confidence_history.append((confidence, source))
         self._step_count += 1
         
-        # Print step info with source details
-        print(f"[Uncertainty] Step {self._step_count}: confidence={confidence:.3f} ({source})")
+        # Print step info with source details and latency
+        print(f"[Uncertainty] Step {self._step_count}: confidence={confidence:.3f} ({source}), latency={step_latency:.2f}s")
         
         return output
     
@@ -159,6 +173,9 @@ class UncertaintyAwareAgentWrapper:
         # Compute variance for uncertainty measure
         variance = sum((c - mean_conf) ** 2 for c in confs) / len(confs) if confs else 0
         
+        # Compute latency statistics
+        latency_stats = self._compute_latency_stats()
+        
         return {
             "n_steps": len(confs),
             "mean_confidence": mean_conf,
@@ -170,12 +187,57 @@ class UncertaintyAwareAgentWrapper:
             "confidence_history": confs,
             "confidence_sources": source_counts,
             "high_uncertainty_steps": sum(1 for c in confs if c < 0.5),
+            # Latency metrics
+            "latency": latency_stats,
+        }
+    
+    def _compute_latency_stats(self) -> Dict[str, Any]:
+        """Compute latency statistics for the trajectory."""
+        if not self._latency_history:
+            return {
+                "total_time": 0.0,
+                "mean_step_latency": 0.0,
+                "min_step_latency": 0.0,
+                "max_step_latency": 0.0,
+                "p50_latency": 0.0,
+                "p95_latency": 0.0,
+                "p99_latency": 0.0,
+                "step_latencies": [],
+            }
+        
+        latencies = sorted(self._latency_history)
+        n = len(latencies)
+        
+        # Wall-clock time (trajectory end - start)
+        if self._trajectory_start_time:
+            total_time = time.time() - self._trajectory_start_time
+        else:
+            total_time = sum(latencies)
+        
+        # Percentile calculation
+        def percentile(p: float) -> float:
+            k = (n - 1) * p / 100
+            f = int(k)
+            c = f + 1 if f + 1 < n else f
+            return latencies[f] + (k - f) * (latencies[c] - latencies[f]) if c != f else latencies[f]
+        
+        return {
+            "total_time": total_time,
+            "mean_step_latency": sum(latencies) / n,
+            "min_step_latency": latencies[0],
+            "max_step_latency": latencies[-1],
+            "p50_latency": percentile(50),
+            "p95_latency": percentile(95),
+            "p99_latency": percentile(99),
+            "step_latencies": self._latency_history,
         }
     
     def reset(self) -> None:
         """Reset tracker for new run."""
         self._step_count = 0
         self._confidence_history = []
+        self._latency_history = []
+        self._trajectory_start_time = None
     
     def __getattr__(self, name: str) -> Any:
         """Delegate to wrapped agent."""
@@ -449,7 +511,7 @@ class UncertaintyAssigner:
         print(final_message)
     
     def _save_uncertainty_analysis(self):
-        """Save uncertainty analysis to file with calibration metrics."""
+        """Save uncertainty analysis to file with calibration and latency metrics."""
         if not self.run_summaries:
             return
         
@@ -462,6 +524,9 @@ class UncertaintyAssigner:
         outcome_analysis = self.calibration_metrics.analyze_outcomes(confidences, outcomes)
         
         successes = sum(1 for r in self.run_summaries if r.get("success", False))
+        
+        # Compute aggregate latency metrics
+        latency_metrics = self._compute_aggregate_latency()
         
         # Build comprehensive report
         report = {
@@ -486,6 +551,7 @@ class UncertaintyAssigner:
                 "bin_confidences": calibration_result.bin_confidences,
                 "bin_counts": calibration_result.bin_counts,
             },
+            "latency": latency_metrics,
             "outcome_analysis": {
                 "mean_confidence_success": outcome_analysis.mean_confidence_success,
                 "mean_confidence_failure": outcome_analysis.mean_confidence_failure,
@@ -524,6 +590,12 @@ class UncertaintyAssigner:
         print(f"  Confidence gap: {outcome_analysis.confidence_gap:+.3f}")
         print(f"  Overconfidence rate: {outcome_analysis.overconfidence_rate:.1%}")
         print(f"  Underconfidence rate: {outcome_analysis.underconfidence_rate:.1%}")
+        print("-" * 40)
+        print("LATENCY METRICS:")
+        print(f"  Mean wall-clock time: {latency_metrics['mean_total_time']:.2f}s")
+        print(f"  Mean step latency: {latency_metrics['mean_step_latency']:.2f}s")
+        print(f"  P95 trajectory time: {latency_metrics['p95_total_time']:.2f}s")
+        print(f"  P99 trajectory time: {latency_metrics['p99_total_time']:.2f}s")
         print("=" * 60 + "\n")
     
     def _interpret_results(
@@ -579,6 +651,65 @@ class UncertaintyAssigner:
             interpretations["overconfidence"] = "Low overconfidence: failures tend to have lower confidence"
         
         return interpretations
+    
+    def _compute_aggregate_latency(self) -> Dict[str, Any]:
+        """Compute aggregate latency metrics across all runs."""
+        if not self.run_summaries:
+            return {
+                "mean_total_time": 0.0,
+                "mean_step_latency": 0.0,
+                "p50_total_time": 0.0,
+                "p95_total_time": 0.0,
+                "p99_total_time": 0.0,
+                "total_steps": 0,
+            }
+        
+        # Collect trajectory times and step latencies
+        total_times = []
+        all_step_latencies = []
+        
+        for run in self.run_summaries:
+            latency = run.get("latency", {})
+            if latency:
+                total_time = latency.get("total_time", 0.0)
+                if total_time > 0:
+                    total_times.append(total_time)
+                step_latencies = latency.get("step_latencies", [])
+                all_step_latencies.extend(step_latencies)
+        
+        if not total_times:
+            return {
+                "mean_total_time": 0.0,
+                "mean_step_latency": 0.0,
+                "p50_total_time": 0.0,
+                "p95_total_time": 0.0,
+                "p99_total_time": 0.0,
+                "total_steps": 0,
+            }
+        
+        # Sort for percentile calculation
+        sorted_times = sorted(total_times)
+        n = len(sorted_times)
+        
+        def percentile(data: List[float], p: float) -> float:
+            if not data:
+                return 0.0
+            k = (len(data) - 1) * p / 100
+            f = int(k)
+            c = f + 1 if f + 1 < len(data) else f
+            return data[f] + (k - f) * (data[c] - data[f]) if c != f else data[f]
+        
+        return {
+            "mean_total_time": sum(total_times) / n,
+            "min_total_time": min(total_times),
+            "max_total_time": max(total_times),
+            "p50_total_time": percentile(sorted_times, 50),
+            "p95_total_time": percentile(sorted_times, 95),
+            "p99_total_time": percentile(sorted_times, 99),
+            "mean_step_latency": sum(all_step_latencies) / len(all_step_latencies) if all_step_latencies else 0.0,
+            "total_steps": len(all_step_latencies),
+            "total_trajectories": n,
+        }
     
     def record_completion(self, agent: str, task: str, index: SampleIndex, result: TaskOutput):
         def calculate_overall_worker():
